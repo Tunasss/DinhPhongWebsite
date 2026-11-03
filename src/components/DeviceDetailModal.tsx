@@ -21,6 +21,7 @@ import {
 } from '../utils/mobileDownload';
 import { formatWarrantySummary } from '../services/storageService';
 import { SHOP_DRIVE_ROOT_FOLDER_URL } from '../data/mockDevices';
+import { StaffSelect } from './StaffSelect';
 
 interface DeviceDetailModalProps {
   device: AppleDevice | null;
@@ -350,23 +351,21 @@ export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                   </span>
                 </div>
                 <div className="p-2 rounded-xl bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200/70 dark:border-blue-800/50">
-                  <span className="text-[11px] text-blue-600 dark:text-blue-400 block font-semibold">3. Người bán máy</span>
-                  <input
-                    type="text"
+                  <StaffSelect
+                    label="3. Người bán máy"
                     value={sellerInput}
-                    onChange={(e) => setSellerInput(e.target.value)}
-                    placeholder="Nhập tên người bán..."
-                    className="w-full mt-0.5 bg-white dark:bg-slate-800 px-2 py-1 rounded-lg border border-blue-200 dark:border-slate-700 font-semibold text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={setSellerInput}
+                    placeholder="Chưa bán"
+                    defaultOptions={['Chưa bán']}
                   />
                 </div>
                 <div className="p-2 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-200/70 dark:border-emerald-800/50">
-                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 block font-semibold">4. Người giao máy</span>
-                  <input
-                    type="text"
+                  <StaffSelect
+                    label="4. Người giao máy"
                     value={delivererInput}
-                    onChange={(e) => setDelivererInput(e.target.value)}
-                    placeholder="Nhập tên người giao..."
-                    className="w-full mt-0.5 bg-white dark:bg-slate-800 px-2 py-1 rounded-lg border border-emerald-200 dark:border-slate-700 font-semibold text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    onChange={setDelivererInput}
+                    placeholder="Chưa giao"
+                    defaultOptions={['Chưa giao']}
                   />
                 </div>
               </div>

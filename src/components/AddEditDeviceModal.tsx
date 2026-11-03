@@ -42,6 +42,7 @@ import {
   formatBatterySummary,
   getDriveFolderLink,
 } from '../services/storageService';
+import { StaffSelect } from './StaffSelect';
 
 interface AddEditDeviceModalProps {
   isOpen: boolean;
@@ -1821,55 +1822,33 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
                   4. Thông tin Nhân sự (Lấy • Kiếm • Bán • Giao)
                 </div>
 
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      1. Tên người lấy
-                    </label>
-                    <input
-                      type="text"
-                      value={receiverName}
-                      onChange={(e) => setReceiverName(e.target.value)}
-                      placeholder="VD: Đình Phong"
-                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-semibold placeholder:text-slate-500 dark:placeholder:text-slate-400 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      2. Tên người kiếm
-                    </label>
-                    <input
-                      type="text"
-                      value={sourcerName}
-                      onChange={(e) => setSourcerName(e.target.value)}
-                      placeholder="VD: Hoàng Phúc"
-                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-semibold placeholder:text-slate-500 dark:placeholder:text-slate-400 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      3. Tên người bán
-                    </label>
-                    <input
-                      type="text"
-                      value={sellerName}
-                      onChange={(e) => setSellerName(e.target.value)}
-                      placeholder="Chưa bán / Tên NV"
-                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-semibold placeholder:text-slate-500 dark:placeholder:text-slate-400 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      4. Tên người giao
-                    </label>
-                    <input
-                      type="text"
-                      value={delivererName}
-                      onChange={(e) => setDelivererName(e.target.value)}
-                      placeholder="Chưa giao / Tên Ship"
-                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-semibold placeholder:text-slate-500 dark:placeholder:text-slate-400 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <StaffSelect
+                    label="1. Tên người lấy"
+                    value={receiverName}
+                    onChange={setReceiverName}
+                    placeholder="-- Chọn người lấy --"
+                  />
+                  <StaffSelect
+                    label="2. Tên người kiếm"
+                    value={sourcerName}
+                    onChange={setSourcerName}
+                    placeholder="-- Chọn người kiếm --"
+                  />
+                  <StaffSelect
+                    label="3. Tên người bán"
+                    value={sellerName}
+                    onChange={setSellerName}
+                    placeholder="Chưa bán"
+                    defaultOptions={['Chưa bán']}
+                  />
+                  <StaffSelect
+                    label="4. Tên người giao"
+                    value={delivererName}
+                    onChange={setDelivererName}
+                    placeholder="Chưa giao"
+                    defaultOptions={['Chưa giao']}
+                  />
                 </div>
               </div>
 

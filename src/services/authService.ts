@@ -201,6 +201,23 @@ export function getStoredUsers(): User[] {
 }
 
 /**
+ * Lấy danh sách tên hiển thị của các nhân sự trong hệ thống (Đình Phong, Anh Tuấn, Phan Tuấn, Võ Nguyên, Anh Vũ...)
+ * dùng làm danh sách Dropdown cho người lấy, kiếm, giao, bán.
+ */
+export function getStaffNames(): string[] {
+  try {
+    const users = getStoredUsers();
+    const names = users
+      .filter((u) => u.isActive)
+      .map((u) => u.displayName || u.username);
+    const defaults = ['Đình Phong', 'Anh Tuấn', 'Phan Tuấn', 'Võ Nguyên', 'Anh Vũ'];
+    return Array.from(new Set([...defaults, ...names])).filter(Boolean);
+  } catch {
+    return ['Đình Phong', 'Anh Tuấn', 'Phan Tuấn', 'Võ Nguyên', 'Anh Vũ'];
+  }
+}
+
+/**
  * Lưu danh sách tài khoản vào LocalStorage
  */
 export function saveStoredUsers(users: User[]): void {

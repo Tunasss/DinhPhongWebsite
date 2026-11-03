@@ -1,6 +1,5 @@
 import React, { useRef, useState } from 'react';
 import {
-  ShieldCheck,
   Lock,
   User as UserIcon,
   Eye,
@@ -8,7 +7,6 @@ import {
   Sparkles,
   ArrowRight,
   AlertCircle,
-  KeyRound,
   Laptop,
 } from 'lucide-react';
 import { login, User } from '../services/authService';
@@ -82,16 +80,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         }
       }
     }, 200);
-  };
-
-  const handleQuickLoginAdmin = () => {
-    setUsername('admin');
-    setPassword('123');
-    setErrorMsg(null);
-    const res = login('admin', '123');
-    if (res.success && res.user) {
-      onLoginSuccess(res.user);
-    }
   };
 
   return (
@@ -219,31 +207,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             </div>
           </form>
 
-          {/* Quick Demo Helper */}
-          <div className="login-stagger mt-6 pt-5 border-t border-slate-800/80 space-y-3">
-            <div className="flex items-center justify-between text-xs text-slate-400">
-              <span className="flex items-center gap-1.5">
-                <KeyRound className="w-3.5 h-3.5 text-amber-400" />
-                Tài khoản Admin mặc định:
-              </span>
-              <button
-                type="button"
-                onClick={handleQuickLoginAdmin}
-                className="text-blue-400 hover:text-blue-300 font-bold underline cursor-pointer text-xs"
-              >
-                Bấm đăng nhập ngay (admin / 123)
-              </button>
-            </div>
-
-            <div className="rounded-xl bg-slate-800/50 p-2.5 text-[11px] text-slate-400 text-center leading-relaxed border border-slate-700/40">
-              🛡️ Hệ thống nội bộ bảo vệ dữ liệu. Sau khi đăng nhập bằng Admin, bạn có thể tạo thêm tài khoản cho nhân viên trong bảng quản lý.
-            </div>
+          {/* Ghi chú sản phẩm độc quyền của Đình Phong Store */}
+          <div className="login-stagger mt-6 pt-4 border-t border-slate-800/80 text-center">
+            <p className="text-[11px] text-slate-400 flex items-center justify-center gap-1.5 font-medium tracking-wide">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+              Sản phẩm độc quyền của Đình Phong Store
+            </p>
           </div>
         </div>
 
         {/* Footer info */}
         <div className="text-center text-[11px] text-slate-500">
-          Đình Phong Apple Management System • Powered by GSAP & React
+          Đình Phong Apple Management System • Powered by GSAP &amp; React
         </div>
       </div>
     </div>
