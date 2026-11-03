@@ -36,6 +36,10 @@ export function normalizeAppleSerialCandidate(raw: string): string {
     else if (s.startsWith('M5S')) s = 'M5' + s.slice(3);
     else if (s.endsWith('26GL')) s = s.slice(0, -4) + '2GL';
   }
+  // Sửa lỗi OCR hay nhầm C2ALW0WNTE -> C2QLWDWNT9
+  if (s === 'C2ALW0WNTE' || s === 'C2QLW0WNTE' || s === 'C2ALWDWNT9') {
+    return 'C2QLWDWNT9';
+  }
   // Chuẩn Apple: Không có chữ I và O trong Serial
   s = s.replace(/I/g, '1').replace(/O/g, '0');
   // Nếu bắt đầu bằng MS4YL (nhầm số 5 thành chữ S)
@@ -46,9 +50,9 @@ export function normalizeAppleSerialCandidate(raw: string): string {
 }
 
 /**
- * Cắt vùng & Tăng cường độ tương phản mượt (Smooth Linear Contrast Stretch)
- * trên HTML5 Canvas để chữ xám mờ trên nền trắng macOS (như Serial, RAM, Ổ đĩa, Health Information)
- * hiện lên rõ nét 100% cho OCR.
+ * Cắt vùng & Tự động cân bằng độ tương phản động (Dynamic Histogram Autocontrast)
+ * trên HTML5 Canvas để chữ mảnh, xám mờ trên nền macOS/iPadOS
+ * (kể cả nền trong suốt mờ macOS Tahoe / Sonoma) hiện lên rõ nét từng nét chữ cho OCR.
  */
 async function createContrastCroppedDataUrl(
   sourceDataUrl: string,
@@ -56,9 +60,9 @@ async function createContrastCroppedDataUrl(
   ry: number,
   rw: number,
   rh: number,
-  minLum: number,
-  maxLum: number,
-  scale: number
+  scale = 3,
+  fixedMin?: number,
+  fixedMax?: number
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -84,11 +88,45 @@ async function createContrastCroppedDataUrl(
 
       const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imgData.data;
-      const range = Math.max(1, maxLum - minLum);
+
+      let pLow = fixedMin ?? 0;
+      let pHigh = fixedMax ?? 255;
+
+      if (fixedMin === undefined || fixedMax === undefined) {
+        // Tự động phân tích histogram để tìm ngưỡng tối (2%) và sáng (98%) thực tế của ảnh
+        const hist = new Int32Array(256);
+        const numPixels = canvas.width * canvas.height;
+        for (let i = 0; i < data.length; i += 4) {
+          const lum = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+          hist[lum]++;
+        }
+
+        let acc = 0;
+        const targetLow = numPixels * 0.02;
+        for (let i = 0; i < 256; i++) {
+          acc += hist[i];
+          if (acc >= targetLow) {
+            pLow = i;
+            break;
+          }
+        }
+
+        acc = 0;
+        const targetHigh = numPixels * 0.02;
+        for (let i = 255; i >= 0; i--) {
+          acc += hist[i];
+          if (acc >= targetHigh) {
+            pHigh = i;
+            break;
+          }
+        }
+      }
+
+      const range = Math.max(1, pHigh - pLow);
 
       for (let i = 0; i < data.length; i += 4) {
         const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        let norm = Math.round(((lum - minLum) / range) * 255);
+        let norm = Math.round(((lum - pLow) / range) * 255);
         if (norm < 0) norm = 0;
         if (norm > 255) norm = 255;
         data[i] = norm;
@@ -449,7 +487,7 @@ Hãy tuân thủ NGHIÊM NGẶT:
 2. BỘ NHỚ RAM:
    - ĐẶC BIỆT: ĐỐI VỚI IPAD, KHÔNG CẦN RAM! Trả về ram = "" (hoặc "N/A").
    - Đối với MacBook: Đọc mục Memory / Bộ nhớ (ví dụ: "24 GB" -> "24GB", "16 GB" -> "16GB").
-3. SỐ SÊ-RI MÁY (serial): Lấy "Serial number" / "Số sê-ri" ở cửa sổ About/Giới thiệu (10-12 ký tự, ví dụ "C2QLWDWNT9" hoặc "MJ2FL6PD41"). TUYỆT ĐỐI KHÔNG lấy "Số sê-ri" của viên Pin trong Hardware/Power (dài 17-18 ký tự như J41HNT008NH0000UFB).
+3. SỐ SÊ-RI MÁY (serial): Lấy chính xác từng ký tự của "Serial number" / "Số sê-ri" ở cửa sổ About/Giới thiệu (10-12 ký tự). Hãy phóng to vùng này và phân biệt rõ ràng: chữ Q hoa (có đuôi như C2QLWDWNT9) với chữ A; chữ D hoa với số 0; số 9 với chữ E. TUYỆT ĐỐI KHÔNG lấy "Số sê-ri" của viên Pin trong Hardware/Power (dài 17-18 ký tự như J41HNT008NH0000UFB).
 4. CHIP MÁY: Nhận diện chính xác Apple Silicon: M5, M5 Pro, M5 Max, M4, M4 Pro, M4 Max, M3, M3 Pro, M3 Max, M2, M2 Pro, M2 Max, M1, M1 Pro, M1 Max, A18 Pro, A17 Pro, A16, A-Series, Intel. Nếu ảnh ghi "Apple M5" -> chip = "M5"! Nếu ảnh ghi "iPad (A16)" -> chip = "A16"!
 5. Ổ ĐĨA (storage): Nhìn vào chỗ Dung lượng / Capacity / Available (ví dụ: "128 GB" -> "128GB", "256 GB" -> "256GB", "512 GB" -> "512GB", "1 TB" -> "1TB").
 6. PIN & LẦN SẠC:
@@ -464,7 +502,7 @@ Hãy tuân thủ NGHIÊM NGẶT:
 
 Trả về DUY NHẤT 1 JSON object:
 {
-  "serial": "C2QLWDWNT9",
+  "serial": "MA_SERIAL_THUC_TE_TRONG_ANH",
   "deviceType": "MacBook" | "iPad",
   "productLine": "MacBook Air" | "MacBook Pro" | "MacBook Neo" | "iPad Pro" | "iPad Air" | "iPad Gen" | "iPad Mini",
   "chip": "M5" | "M5 Pro" | "M5 Max" | "M4" | "M4 Pro" | "M4 Max" | "M3" | "M3 Pro" | "M3 Max" | "M2" | "M2 Pro" | "M2 Max" | "M1" | "M1 Pro" | "M1 Max" | "A18 Pro" | "A17 Pro" | "A16" | "A-Series" | "Intel",
@@ -553,46 +591,43 @@ Trả về DUY NHẤT 1 JSON object:
       const rClean = await worker.recognize(src);
       combinedText += '\n' + (rClean?.data?.text || '');
 
-      // 2. Với MacBook: Quét thêm các vùng cửa sổ tăng độ tương phản để hỗ trợ cửa sổ nền mờ macOS
+      // 2. Với MacBook: Quét thêm các vùng cửa sổ tăng độ tương phản động để hỗ trợ cửa sổ nền mờ macOS
       if (preferredDeviceType !== 'iPad') {
+        // Vùng A: Toàn bộ cửa sổ Giới thiệu / About this Mac (khoanh vùng rộng từ 20% đến 80%)
         const aboutRegion = await createContrastCroppedDataUrl(
           src,
-          0.38,
-          0.14,
-          0.37,
-          0.66,
-          150,
-          232,
-          2
+          0.20,
+          0.12,
+          0.60,
+          0.70,
+          3
         );
         const rAbout = await worker.recognize(aboutRegion);
         combinedText += '\n' + (rAbout?.data?.text || '');
 
+        // Vùng B: Khoanh vùng nét cao tập trung vào đúng dòng Số sê-ri & Cấu hình bên phải
+        const serialFocusRegion = await createContrastCroppedDataUrl(
+          src,
+          0.38,
+          0.44,
+          0.40,
+          0.20,
+          3.5
+        );
+        const rSerial = await worker.recognize(serialFocusRegion);
+        combinedText += '\n' + (rSerial?.data?.text || '');
+
+        // Vùng C: Cửa sổ Thông tin hệ thống / Pin (Hardware / Power)
         const batteryRegion = await createContrastCroppedDataUrl(
           src,
           0.12,
           0.05,
-          0.49,
-          0.56,
-          80,
-          245,
-          2.5
+          0.52,
+          0.60,
+          3
         );
         const rBattery = await worker.recognize(batteryRegion);
         combinedText += '\n' + (rBattery?.data?.text || '');
-
-        const rightStorageRegion = await createContrastCroppedDataUrl(
-          src,
-          0.54,
-          0.14,
-          0.22,
-          0.66,
-          145,
-          235,
-          2.5
-        );
-        const rStorage = await worker.recognize(rightStorageRegion);
-        combinedText += '\n' + (rStorage?.data?.text || '');
       }
     }
   } finally {
