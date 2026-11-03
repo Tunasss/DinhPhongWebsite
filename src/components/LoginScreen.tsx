@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Lock,
   User as UserIcon,
@@ -9,7 +9,7 @@ import {
   AlertCircle,
   Laptop,
 } from 'lucide-react';
-import { login, User } from '../services/authService';
+import { fetchUsersFromGoogleSheetDirect, login, User } from '../services/authService';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 
@@ -58,19 +58,23 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     { scope: containerRef }
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Tự động tải danh sách tài khoản mới nhất trực tiếp từ Google Sheet ngay khi màn hình đăng nhập mở ra
+  useEffect(() => {
+    fetchUsersFromGoogleSheetDirect().catch(() => {});
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setIsLoading(true);
 
-    setTimeout(() => {
-      const res = login(username, password);
+    try {
+      const res = await login(username, password);
       setIsLoading(false);
       if (res.success && res.user) {
         onLoginSuccess(res.user);
       } else {
         setErrorMsg(res.message || 'Đăng nhập không thành công.');
-        // Shake card on error
         if (cardRef.current) {
           gsap.fromTo(
             cardRef.current,
@@ -79,7 +83,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           );
         }
       }
-    }, 200);
+    } catch {
+      setIsLoading(false);
+      setErrorMsg('Lỗi kết nối. Vui lòng thử lại.');
+    }
   };
 
   return (

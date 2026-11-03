@@ -254,12 +254,9 @@ export function getStaffNames(): string[] {
 }
 
 /**
- * Lưu danh sách tài khoản vào LocalStorage và tự động đồng bộ lên Google Sheets (tab TaiKhoan_NhanSu)
+ * Lưu danh sách tài khoản vào LocalStorage (chỉ lưu cục bộ trình duyệt, KHÔNG tự động ghi đè lên Cloud)
  */
-export function saveStoredUsers(
-  users: User[],
-  options?: { skipCloudSync?: boolean }
-): void {
+export function saveStoredUsers(users: User[]): void {
   try {
     localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
     localStorage.setItem('dinhphong_users', JSON.stringify(users));
@@ -268,20 +265,90 @@ export function saveStoredUsers(
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('dinhphong_users_updated', { detail: users }));
     }
-
-    // Tự động đẩy lên Google Sheets nếu không bị chặn bởi cờ skipCloudSync
-    if (!options?.skipCloudSync) {
-      pushUsersToCloud(users).catch((err) => {
-        console.warn('Đồng bộ tài khoản lên cloud ở chế độ nền:', err);
-      });
-    }
   } catch (err) {
     console.error('Lỗi lưu danh sách tài khoản:', err);
   }
 }
 
 /**
+ * Đọc trực tiếp danh sách tài khoản từ Google Sheets (tab TaiKhoan_NhanSu) qua endpoint CSV công khai (siêu nhanh ~200ms).
+ * Phương thức này hoạt động trên mọi điện thoại & thiết bị mà không bị chặn CORS hay phụ thuộc Apps Script!
+ */
+export async function fetchUsersFromGoogleSheetDirect(): Promise<User[]> {
+  try {
+    const csvUrl =
+      'https://docs.google.com/spreadsheets/d/1hrn38CRokXNRRMQalwelBXLuYplY_2-m2Uybpz-9sQI/gviz/tq?tqx=out:csv&sheet=TaiKhoan_NhanSu';
+    const res = await fetch(csvUrl, { cache: 'no-store' });
+    if (!res.ok) return [];
+    const csvText = await res.text();
+    const lines = csvText.split(/\r?\n/).filter((l) => l.trim());
+    if (lines.length <= 1) return [];
+
+    const fetchedUsers: User[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      // Tách các cột theo định dạng CSV có nháy kép
+      const values: string[] = [];
+      let current = '';
+      let inQuote = false;
+      for (let j = 0; j < line.length; j++) {
+        const c = line[j];
+        if (c === '"') {
+          if (inQuote && line[j + 1] === '"') {
+            current += '"';
+            j++;
+          } else {
+            inQuote = !inQuote;
+          }
+        } else if (c === ',' && !inQuote) {
+          values.push(current);
+          current = '';
+        } else {
+          current += c;
+        }
+      }
+      values.push(current);
+
+      const id = (values[0] || '').trim();
+      const username = (values[1] || '').trim();
+      const passwordHash = (values[2] || '').trim();
+      const displayName = (values[3] || '').trim();
+      const role = (values[4] || 'staff').trim();
+      const isActiveRaw = (values[5] || '').trim().toUpperCase();
+      const phone = (values[6] || '').trim();
+      const createdAt = (values[7] || '').trim();
+      const updatedAt = (values[8] || '').trim();
+
+      if (username && passwordHash) {
+        fetchedUsers.push({
+          id: id || `usr_${username}`,
+          username: username,
+          passwordHash: passwordHash,
+          displayName: displayName || username,
+          role: role === 'admin' ? 'admin' : 'staff',
+          isActive: isActiveRaw !== 'FALSE',
+          phone: phone,
+          createdAt: createdAt || new Date().toISOString(),
+          updatedAt: updatedAt,
+        });
+      }
+    }
+
+    if (fetchedUsers.length > 0) {
+      // Lưu danh sách mới nhất vào LocalStorage để lần sau mở ngay cả khi offline
+      saveStoredUsers(fetchedUsers);
+      return fetchedUsers;
+    }
+    return [];
+  } catch (err) {
+    console.warn('Không thể đọc trực tiếp tài khoản từ Google Sheet CSV:', err);
+    return [];
+  }
+}
+
+/**
  * Đẩy toàn bộ danh sách tài khoản lên Google Sheets (Lưu vào tab TaiKhoan_NhanSu)
+ * CHỈ GỌI KHI CÓ HÀNH ĐỘNG THỰC SỰ: Tạo user, đổi pass, xóa user, reset pass.
  */
 export async function pushUsersToCloud(
   usersToPush?: User[]
@@ -317,6 +384,13 @@ export async function syncUsersFromCloud(): Promise<{
   message?: string;
 }> {
   try {
+    // 1. Ưu tiên đọc trực tiếp từ Google Sheet CSV (nhanh và chuẩn xác nhất)
+    const directUsers = await fetchUsersFromGoogleSheetDirect();
+    if (directUsers.length > 0) {
+      return { success: true, users: directUsers };
+    }
+
+    // 2. Fallback gọi qua Apps Script nếu cần
     const localUsers = getStoredUsers();
     const settings = loadSettings();
     if (!settings.gasWebAppUrl || !settings.gasWebAppUrl.trim()) {
@@ -329,37 +403,16 @@ export async function syncUsersFromCloud(): Promise<{
     });
 
     if (res && res.ok && Array.isArray(res.users) && res.users.length > 0) {
-      // Hợp nhất danh sách đám mây và danh sách nội bộ
       const cloudUsers: User[] = res.users;
       const userMap = new Map<string, User>();
-
-      // Đưa local users vào map trước
-      localUsers.forEach((u) => {
-        userMap.set(u.username.toLowerCase(), u);
-      });
-
-      // Ghi đè/cập nhật thông tin từ Cloud Sheet
+      localUsers.forEach((u) => userMap.set(u.username.toLowerCase(), u));
       cloudUsers.forEach((cu) => {
         const key = (cu.username || '').toLowerCase();
         if (!key) return;
-        const existing = userMap.get(key);
-        if (existing) {
-          userMap.set(key, {
-            ...existing,
-            passwordHash: cu.passwordHash || existing.passwordHash,
-            displayName: cu.displayName || existing.displayName,
-            role: cu.role || existing.role,
-            isActive: cu.isActive !== undefined ? cu.isActive : existing.isActive,
-            phone: cu.phone || existing.phone,
-            updatedAt: cu.updatedAt || existing.updatedAt,
-          });
-        } else {
-          userMap.set(key, cu);
-        }
+        userMap.set(key, cu);
       });
-
       const mergedUsers = Array.from(userMap.values());
-      saveStoredUsers(mergedUsers, { skipCloudSync: true });
+      saveStoredUsers(mergedUsers);
       return { success: true, users: mergedUsers };
     }
 
@@ -448,12 +501,12 @@ export function setCurrentUser(user: User | null): void {
 }
 
 /**
- * Đăng nhập hệ thống (Xác thực bằng hàm băm SHA-256 an toàn)
+ * Đăng nhập hệ thống (Xác thực bằng hàm băm SHA-256 an toàn và tự động kiểm tra Google Sheet nếu cần)
  */
-export function login(
+export async function login(
   username: string,
   pass: string
-): { success: boolean; user?: User; message?: string } {
+): Promise<{ success: boolean; user?: User; message?: string }> {
   const cleanUsername = username.trim().toLowerCase();
   const cleanPassword = pass.trim();
 
@@ -461,14 +514,33 @@ export function login(
     return { success: false, message: 'Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.' };
   }
 
-  const users = getStoredUsers();
   const inputHash = hashPassword(cleanPassword);
 
-  const matched = users.find(
+  // 1. Kiểm tra với danh sách tài khoản hiện có trong máy
+  let users = getStoredUsers();
+  let matched = users.find(
     (u) =>
       u.username.toLowerCase() === cleanUsername &&
       (u.passwordHash === inputHash || (u as any).password === cleanPassword)
   );
+
+  // 2. Nếu không khớp (có thể do vừa đổi pass ở máy khác hoặc tạo user mới trên Sheet):
+  // Tải danh sách mới nhất từ Google Sheet về ngay lập tức
+  if (!matched) {
+    try {
+      const freshUsers = await fetchUsersFromGoogleSheetDirect();
+      if (freshUsers.length > 0) {
+        users = freshUsers;
+        matched = users.find(
+          (u) =>
+            u.username.toLowerCase() === cleanUsername &&
+            (u.passwordHash === inputHash || (u as any).password === cleanPassword)
+        );
+      }
+    } catch {
+      // Bỏ qua lỗi mạng
+    }
+  }
 
   if (!matched) {
     return { success: false, message: 'Tên đăng nhập hoặc mật khẩu không chính xác.' };
@@ -478,11 +550,8 @@ export function login(
     return { success: false, message: 'Tài khoản này đã bị tạm khóa. Vui lòng liên hệ Admin.' };
   }
 
-  // Tự động nâng cấp hash nếu tài khoản cũ
-  matched.passwordHash = inputHash;
-  delete (matched as any).password;
+  // Cập nhật phiên đăng nhập (CHỈ LƯU TRÌNH DUYỆT LOCAL, TUYỆT ĐỐI KHÔNG PUSH LÊN CLOUD ĐỂ TRÁNH RESET SHEET!)
   matched.lastLogin = new Date().toISOString();
-
   saveStoredUsers(users);
   setCurrentUser(matched);
 
