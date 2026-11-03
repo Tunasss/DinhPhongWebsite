@@ -515,6 +515,7 @@ export const App: React.FC = () => {
           key={editingDevice ? `edit-${editingDevice.id}` : 'new-device'}
           isOpen={isAddEditOpen}
           initialDevice={editingDevice}
+          existingDevices={devices}
           settings={settings}
           onClose={() => {
             setIsAddEditOpen(false);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   X,
   Upload,
@@ -23,6 +23,7 @@ import {
   Keyboard,
   Headphones,
   RefreshCw,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   APPLE_COLORS,
@@ -43,12 +44,14 @@ import {
   formatBatterySummary,
   getDriveFolderLink,
   normalizeDateToYMD,
+  loadLocalDevices,
 } from '../services/storageService';
 import { StaffSelect } from './StaffSelect';
 
 interface AddEditDeviceModalProps {
   isOpen: boolean;
   initialDevice: AppleDevice | null;
+  existingDevices?: AppleDevice[];
   settings: AppSettings;
   onClose: () => void;
   onSave: (device: AppleDevice) => Promise<void>;
@@ -172,12 +175,20 @@ async function urlToSpecImageInput(url: string, fileName: string): Promise<SpecI
 export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
   isOpen,
   initialDevice,
+  existingDevices,
   settings,
   onClose,
   onSave,
   onNotify,
 }) => {
   const isEditing = !!initialDevice;
+
+  // Lấy danh sách máy hiện có trong kho để phát hiện trùng máy
+  const existingDevicesList = useMemo(() => {
+    return existingDevices && existingDevices.length > 0
+      ? existingDevices
+      : loadLocalDevices();
+  }, [existingDevices]);
 
   // Bước 0: Chọn MacBook hay iPad trước khi tải ảnh; Bước 1: Tải 2 ảnh thông tin; Bước 2: Cấu hình, Giá & Bộ ảnh
   const [currentStep, setCurrentStep] = useState<0 | 1 | 2>(isEditing ? 2 : 0);
@@ -214,6 +225,20 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
 
   // Thông tin cấu hình máy
   const [serial, setSerial] = useState(initialDevice?.serial || '');
+
+  // Kiểm tra trùng mã Serial máy (không cho phép nhập trùng máy trong kho)
+  const duplicateDevice = useMemo(() => {
+    const s = serial.trim().toUpperCase();
+    if (!s || s.length < 4) return null;
+    return (
+      existingDevicesList.find(
+        (d) =>
+          d.serial &&
+          d.serial.trim().toUpperCase() === s &&
+          (!isEditing || d.id !== initialDevice?.id)
+      ) || null
+    );
+  }, [serial, isEditing, initialDevice, existingDevicesList]);
   const [deviceType, setDeviceType] = useState<DeviceCategory>(
     initialDevice?.deviceType || 'MacBook'
   );
@@ -466,7 +491,20 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
     ) {
       cleanSerial = 'C2QLWDWNT9';
     }
-    if (cleanSerial) setSerial(cleanSerial);
+    if (cleanSerial) {
+      setSerial(cleanSerial);
+      const dup = existingDevicesList.find(
+        (d) =>
+          d.serial &&
+          d.serial.trim().toUpperCase() === cleanSerial &&
+          (!isEditing || d.id !== initialDevice?.id)
+      );
+      if (dup) {
+        onNotify(
+          `⚠️ CẢNH BÁO TRÙNG MÁY: Mã Serial "${cleanSerial}" đã có trong kho (${dup.title})!`
+        );
+      }
+    }
 
     // Nếu người dùng đã chủ động chọn MacBook Neo hoặc ảnh đọc ra MacBook Neo, giữ riêng MacBook Neo!
     const isNeo =
@@ -748,6 +786,14 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
 
     if (!effectiveSerial) {
       onNotify('Vui lòng nhập hoặc quét mã Serial của máy/thiết bị!');
+      return;
+    }
+
+    // Chặn triệt để không cho phép nhập trùng máy (trùng mã Serial) trong kho
+    if (duplicateDevice) {
+      onNotify(
+        `❌ LỖI TRÙNG MÁY: Mã Serial "${effectiveSerial}" đã tồn tại trong kho (${duplicateDevice.title})! Vui lòng kiểm tra lại.`
+      );
       return;
     }
 
@@ -1504,13 +1550,31 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
                 </button>
               </div>
 
-              <div className="flex items-center gap-2 text-xs bg-slate-800/90 px-3 py-2 rounded-xl border border-slate-700">
-                <FolderPlus className="w-4 h-4 text-amber-400 shrink-0" />
+              <div
+                className={`flex items-center gap-2 text-xs px-3 py-2 rounded-xl border transition ${
+                  duplicateDevice
+                    ? 'bg-rose-950/80 border-rose-600 text-rose-200'
+                    : 'bg-slate-800/90 border-slate-700'
+                }`}
+              >
+                {duplicateDevice ? (
+                  <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                ) : (
+                  <FolderPlus className="w-4 h-4 text-amber-400 shrink-0" />
+                )}
                 <div className="truncate">
-                  <span className="text-slate-400">Folder con sẽ tạo: </span>
-                  <span className="font-mono font-bold text-amber-300">
-                    {driveSubfolderPreview}
-                  </span>
+                  {duplicateDevice ? (
+                    <span className="font-bold text-rose-300">
+                      ❌ CẢNH BÁO TRÙNG MÁY: Serial [{cleanSerialPreview}] đã tồn tại trong kho (Không thể lưu)!
+                    </span>
+                  ) : (
+                    <>
+                      <span className="text-slate-400">Folder con sẽ tạo: </span>
+                      <span className="font-mono font-bold text-amber-300">
+                        {driveSubfolderPreview}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -1533,8 +1597,36 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
                     value={serial}
                     onChange={(e) => setSerial(e.target.value.toUpperCase())}
                     placeholder="VD: C24WT1P2GL"
-                    className="w-full px-3 py-2 rounded-xl border border-amber-300 dark:border-slate-700 font-mono font-bold text-sm uppercase bg-amber-50/70 dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-sm uppercase placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:outline-none focus:ring-2 transition ${
+                      duplicateDevice
+                        ? 'border-rose-500 bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200 focus:ring-rose-500'
+                        : 'border-amber-300 dark:border-slate-700 bg-amber-50/70 dark:bg-slate-800 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-700 focus:ring-blue-500'
+                    }`}
                   />
+                  {duplicateDevice && (
+                    <div className="mt-1.5 p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold text-rose-600 dark:text-rose-400">
+                          ⚠️ Trùng mã Serial! Máy này đã có trong kho
+                        </div>
+                        <div className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5">
+                          Trùng với máy:{' '}
+                          <span className="font-bold text-rose-600 dark:text-rose-400">
+                            {duplicateDevice.title}
+                          </span>
+                          {' • '}Trạng thái:{' '}
+                          <span className="font-bold">
+                            {duplicateDevice.status === 'available'
+                              ? 'Sẵn hàng'
+                              : duplicateDevice.status === 'sold'
+                              ? 'Đã bán'
+                              : 'Đã cọc'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -2219,13 +2311,23 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={isSaving}
-                  className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-bold shadow-md shadow-blue-600/20 inline-flex items-center gap-2 cursor-pointer disabled:opacity-60"
+                  disabled={isSaving || !!duplicateDevice}
+                  className={`px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow-md inline-flex items-center gap-2 transition ${
+                    duplicateDevice
+                      ? 'bg-rose-600 hover:bg-rose-700 text-white cursor-not-allowed shadow-rose-600/30'
+                      : isSaving
+                      ? 'bg-blue-600 opacity-60 text-white cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/20 cursor-pointer'
+                  }`}
+                  title={duplicateDevice ? `Không thể lưu vì máy Serial ${serial} đã có trong kho` : undefined}
                 >
                   {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {duplicateDevice && <AlertTriangle className="w-4 h-4 text-white shrink-0" />}
                   <span>
                     {isSaving
                       ? `Đang lưu ${totalImagesCount} ảnh & tạo Folder...`
+                      : duplicateDevice
+                      ? `Trùng Serial trong kho (Không thể lưu)`
                       : isEditing
                       ? `Cập nhật máy (${totalImagesCount} ảnh)`
                       : `Lưu máy (${totalImagesCount} ảnh) & Tạo Folder [${cleanSerialPreview}]`}
