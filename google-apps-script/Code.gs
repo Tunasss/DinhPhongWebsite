@@ -475,16 +475,74 @@ function handleUploadSingleImage(payload) {
 }
 
 function handleDeleteDevice(payload) {
-  const { sheet } = getOrCreateSpreadsheetInDriveFolder(payload.rootFolderId);
+  const rootFolderId = payload.rootFolderId || DEFAULT_ROOT_FOLDER_ID;
+  const { sheet, rootFolder } = getOrCreateSpreadsheetInDriveFolder(rootFolderId);
   const id = payload.id;
   const data = sheet.getDataRange().getValues();
+
+  let targetDriveFolderId = payload.driveFolderId;
+  let targetSerial = (payload.serial || '').toUpperCase();
+
+  let foundRow = -1;
   for (let r = 1; r < data.length; r++) {
     if (String(data[r][0]) === String(id)) {
-      sheet.deleteRow(r + 1);
-      return jsonResponse({ ok: true });
+      foundRow = r + 1;
+      // Cột 25 (index 24): driveFolderId
+      if (!targetDriveFolderId && data[r][24]) {
+        targetDriveFolderId = data[r][24];
+      }
+      // Cột 2 (index 1): serial
+      if (!targetSerial && data[r][1]) {
+        targetSerial = String(data[r][1]).toUpperCase();
+      }
+      break;
     }
   }
-  return jsonResponse({ ok: false, error: 'Không tìm thấy máy để xóa' });
+
+  // 1. Xóa thư mục chứa ảnh của máy trên Google Drive (đưa vào Thùng rác)
+  let folderTrashed = false;
+  if (
+    targetDriveFolderId &&
+    targetDriveFolderId !== rootFolderId &&
+    targetDriveFolderId !== DEFAULT_ROOT_FOLDER_ID
+  ) {
+    try {
+      const folder = DriveApp.getFolderById(targetDriveFolderId);
+      if (folder) {
+        folder.setTrashed(true);
+        folderTrashed = true;
+      }
+    } catch (e) {}
+  }
+
+  // Nếu chưa xóa được qua ID, quét tìm thư mục theo Serial trong DinhPhongData
+  if (!folderTrashed && targetSerial) {
+    try {
+      function searchAndTrash(parent) {
+        const sub = parent.getFolders();
+        while (sub.hasNext()) {
+          const f = sub.next();
+          if (!f.isTrashed()) {
+            if (f.getName().toUpperCase().indexOf(targetSerial) === 0) {
+              f.setTrashed(true);
+              return true;
+            }
+            if (searchAndTrash(f)) return true;
+          }
+        }
+        return false;
+      }
+      searchAndTrash(rootFolder);
+    } catch (e) {}
+  }
+
+  // 2. Xóa hàng khỏi Google Sheet
+  if (foundRow > 0) {
+    sheet.deleteRow(foundRow);
+    return jsonResponse({ ok: true, deletedDriveFolder: true });
+  }
+
+  return jsonResponse({ ok: true, note: 'Đã xử lý xóa thư mục' });
 }
 
 function handleUpdateStatus(payload) {

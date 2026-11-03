@@ -607,6 +607,7 @@ export async function removeDeviceById(
   settings: AppSettings
 ): Promise<AppleDevice[]> {
   const current = loadLocalDevices();
+  const deviceToDelete = current.find((d) => d.id === id);
   const next = current.filter((d) => d.id !== id);
   saveLocalDevices(next);
 
@@ -615,10 +616,12 @@ export async function removeDeviceById(
       await callGoogleAppsScript(settings.gasWebAppUrl.trim(), 'POST', {
         action: 'deleteDevice',
         id,
+        driveFolderId: deviceToDelete?.driveFolderId,
+        serial: deviceToDelete?.serial,
         rootFolderId: normalizeDriveFolderId(settings.driveRootFolderId),
       });
     } catch (err) {
-      console.warn('Lỗi xóa trên Google Sheets:', err);
+      console.warn('Lỗi xóa trên Google Sheets & Google Drive:', err);
     }
   }
   return next;

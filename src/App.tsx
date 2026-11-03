@@ -161,7 +161,7 @@ export const App: React.FC = () => {
   const handleDeleteDevice = async (id: string) => {
     const next = await removeDeviceById(id, settings);
     setDevices(next);
-    showToast('Đã xóa máy khỏi kho.');
+    showToast('Đã xóa máy khỏi Sheet & chuyển thư mục ảnh vào Thùng rác Drive.');
   };
 
   const handleQuickStatusChange = async (
