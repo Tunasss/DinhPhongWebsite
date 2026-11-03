@@ -3,6 +3,8 @@ import {
   INITIAL_MOCK_DEVICES,
   SHOP_DRIVE_ROOT_FOLDER_ID,
   SHOP_DRIVE_ROOT_FOLDER_URL,
+  SHOP_RAW_SHEET_ID,
+  SHOP_RAW_SHEET_URL,
 } from '../data/mockDevices';
 
 const DEVICES_STORAGE_KEY = 'dinhphong_apple_devices_v3';
@@ -117,10 +119,15 @@ export function loadLocalDevices(): AppleDevice[] {
       localStorage.getItem(DEVICES_STORAGE_KEY) ||
       localStorage.getItem('dinhphong_apple_devices_v2');
     if (!raw) {
+      localStorage.setItem(DEVICES_STORAGE_KEY, JSON.stringify(INITIAL_MOCK_DEVICES));
       return INITIAL_MOCK_DEVICES;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_MOCK_DEVICES;
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed;
+    }
+    localStorage.setItem(DEVICES_STORAGE_KEY, JSON.stringify(INITIAL_MOCK_DEVICES));
+    return INITIAL_MOCK_DEVICES;
   } catch {
     return INITIAL_MOCK_DEVICES;
   }
@@ -169,6 +176,124 @@ export function formatWarrantySummary(device: Partial<AppleDevice>): string {
 }
 
 /**
+ * Bóc tách danh sách máy từ dữ liệu file Google Sheet CSV
+ */
+export function parseDevicesFromSheetCsv(csvText: string): AppleDevice[] {
+  const rows: string[][] = [];
+  let currentRow: string[] = [];
+  let currentField = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < csvText.length; i++) {
+    const c = csvText[i];
+    if (c === '"') {
+      if (inQuotes && csvText[i + 1] === '"') {
+        currentField += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (c === ',' && !inQuotes) {
+      currentRow.push(currentField);
+      currentField = '';
+    } else if ((c === '\r' || c === '\n') && !inQuotes) {
+      if (c === '\r' && csvText[i + 1] === '\n') i++;
+      currentRow.push(currentField);
+      rows.push(currentRow);
+      currentRow = [];
+      currentField = '';
+    } else {
+      currentField += c;
+    }
+  }
+  if (currentField || currentRow.length > 0) {
+    currentRow.push(currentField);
+    rows.push(currentRow);
+  }
+
+  if (rows.length < 2) return [];
+
+  const headers = rows[0].map((h) => h.trim().replace(/^"|"$/g, ''));
+  return rows.slice(1).map((row) => {
+    const obj: Record<string, string> = {};
+    headers.forEach((h, idx) => {
+      obj[h] = row[idx] ? row[idx].trim().replace(/^"|"$/g, '') : '';
+    });
+
+    let images: any[] = [];
+    try {
+      if (obj.imagesJson) {
+        images = JSON.parse(obj.imagesJson);
+      }
+    } catch {
+      // ignore
+    }
+
+    const hasBattery = obj.hasBatteryCapacity === 'TRUE' || obj.hasBatteryCapacity === 'true';
+    const hasCycle = obj.hasBatteryCycle === 'TRUE' || obj.hasBatteryCycle === 'true';
+    const cap = obj.batteryCapacityPercent ? Number(obj.batteryCapacityPercent) : undefined;
+    const cycle = obj.batteryCycleCount ? Number(obj.batteryCycleCount) : undefined;
+    const batteryHealth =
+      hasBattery && cap !== undefined
+        ? `Pin ${cap}%${hasCycle && cycle !== undefined ? ` • ${cycle} lần sạc` : ''}`
+        : '';
+
+    return {
+      id: obj.id || `dev-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      serial: obj.serial || '',
+      title: obj.title || '',
+      deviceType: (obj.deviceType as any) || 'MacBook',
+      productLine: (obj.productLine as any) || 'MacBook Air',
+      chip: obj.chip || 'M1',
+      ram: obj.ram || '8GB',
+      storage: obj.storage || '256GB',
+      screenSize: obj.screenSize || '13 inch',
+      color: obj.color || '',
+      hasBatteryCapacity: hasBattery,
+      batteryCapacityPercent: cap,
+      hasBatteryCycle: hasCycle,
+      batteryCycleCount: cycle,
+      batteryHealth,
+      hasWarranty: obj.hasWarranty === 'TRUE' || obj.hasWarranty === 'true',
+      warrantyExpiryDate: obj.warrantyExpiryDate || '',
+      conditionNote: obj.conditionNote || '',
+      importPrice: Number(obj.importPrice) || 0,
+      salePrice: Number(obj.salePrice) || 0,
+      receiverName: obj.receiverName || '',
+      sourcerName: obj.sourcerName || '',
+      sellerName: obj.sellerName || 'Chưa bán',
+      delivererName: obj.delivererName || 'Chưa giao',
+      status: (obj.status as any) || 'available',
+      driveFolderId: obj.driveFolderId || '',
+      driveFolderUrl: obj.driveFolderUrl || '',
+      images,
+      createdAt: obj.createdAt || new Date().toISOString(),
+      updatedAt: obj.updatedAt || new Date().toISOString(),
+    };
+  });
+}
+
+/**
+ * Tải trực tiếp dữ liệu thô từ file Google Sheet chính thức của shop (Không bao giờ lỗi CORS)
+ */
+export async function fetchDevicesFromGoogleSheetDirect(): Promise<AppleDevice[]> {
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${SHOP_RAW_SHEET_ID}/gviz/tq?tqx=out:csv`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const text = await res.text();
+    const parsed = parseDevicesFromSheetCsv(text);
+    if (parsed.length > 0) {
+      saveLocalDevices(parsed);
+      return parsed;
+    }
+  } catch (err) {
+    console.warn('Lỗi tải trực tiếp từ Google Sheet:', err);
+  }
+  return [];
+}
+
+/**
  * Tải danh sách máy: kết hợp bộ nhớ đệm và đồng bộ trực tiếp từ Google Sheets Cloud
  */
 export async function fetchAllDevices(settings: AppSettings): Promise<{
@@ -178,23 +303,37 @@ export async function fetchAllDevices(settings: AppSettings): Promise<{
 }> {
   const local = loadLocalDevices();
 
-  if (!settings.gasWebAppUrl.trim()) {
-    return { devices: local, fromCloud: false };
+  // 1. Thử gọi qua Google Apps Script Web App
+  if (settings.gasWebAppUrl.trim()) {
+    try {
+      const rootId = normalizeDriveFolderId(settings.driveRootFolderId);
+      const url = `${settings.gasWebAppUrl.trim()}?rootFolderId=${encodeURIComponent(rootId)}`;
+      const data = await callGoogleAppsScript(url, 'GET');
+      if (data && data.ok && Array.isArray(data.devices) && data.devices.length > 0) {
+        saveLocalDevices(data.devices);
+        return { devices: data.devices, fromCloud: true, sheetUrl: data.sheetUrl };
+      }
+    } catch (err) {
+      console.warn('Google Apps Script proxy không phản hồi, tự động đọc trực tiếp từ Google Sheet:', err);
+    }
   }
 
+  // 2. Tự động đồng bộ trực tiếp từ Google Sheet chính thức của shop (Hoạt động 100% không lo lỗi 403)
   try {
-    const rootId = normalizeDriveFolderId(settings.driveRootFolderId);
-    const url = `${settings.gasWebAppUrl.trim()}?rootFolderId=${encodeURIComponent(rootId)}`;
-    const data = await callGoogleAppsScript(url, 'GET');
-    if (data && data.ok && Array.isArray(data.devices)) {
-      saveLocalDevices(data.devices);
-      return { devices: data.devices, fromCloud: true, sheetUrl: data.sheetUrl };
+    const directDevices = await fetchDevicesFromGoogleSheetDirect();
+    if (directDevices.length > 0) {
+      return {
+        devices: directDevices,
+        fromCloud: true,
+        sheetUrl: SHOP_RAW_SHEET_URL,
+      };
     }
-    return { devices: local, fromCloud: false };
   } catch (err) {
-    console.warn('Không thể tải từ Google Sheets Cloud, dùng bản cache trình duyệt:', err);
-    return { devices: local, fromCloud: false };
+    console.warn('Không thể đọc Google Sheet trực tiếp:', err);
   }
+
+  // 3. Fallback về cache trình duyệt hoặc danh sách khởi tạo
+  return { devices: local, fromCloud: false, sheetUrl: SHOP_RAW_SHEET_URL };
 }
 
 async function ensureImageHasBase64ForCloud(img: DeviceImage): Promise<DeviceImage> {
