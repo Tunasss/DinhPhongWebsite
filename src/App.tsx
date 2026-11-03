@@ -25,7 +25,7 @@ import {
   saveSettings,
   upsertDevice,
 } from './services/storageService';
-import { getCurrentUser, logout, User } from './services/authService';
+import { getCurrentUser, logout, syncUsersFromCloud, User } from './services/authService';
 import { LoginScreen } from './components/LoginScreen';
 import { UserManagementModal } from './components/UserManagementModal';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
@@ -104,6 +104,11 @@ export const App: React.FC = () => {
       setIsSyncing(false);
     }
   };
+
+  // Tự động đồng bộ tài khoản người dùng từ Cloud ngay khi mở trang web (trước hoặc sau đăng nhập)
+  useEffect(() => {
+    syncUsersFromCloud().catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (currentUser) {
@@ -336,7 +341,10 @@ export const App: React.FC = () => {
         onOpenUserManagement={() => setIsUserManagementOpen(true)}
         onOpenChangePassword={() => setIsChangePasswordOpen(true)}
         onLogout={handleLogout}
-        onRefresh={() => syncInventory(settings)}
+        onRefresh={() => {
+          syncInventory(settings);
+          syncUsersFromCloud().catch(() => {});
+        }}
       />
 
       {/* Thanh phân loại dòng máy (MacBook / iPad / Phụ kiện & Khác), Chip, Nhân sự & Tìm kiếm */}
@@ -407,7 +415,7 @@ export const App: React.FC = () => {
               setEditingDevice(null);
               setIsAddEditOpen(true);
             }}
-            className="shrink-0 inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md shadow-blue-600/30 transition cursor-pointer"
+            className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 sm:py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-600/30 transition cursor-pointer"
           >
             <Sparkles className="w-3.5 h-3.5 text-cyan-200" />
             <span>+ Nhập sản phẩm mới</span>
@@ -462,18 +470,6 @@ export const App: React.FC = () => {
           </div>
         )}
       </main>
-
-      {/* Nút nổi (+ Nhập máy) trên điện thoại */}
-      <button
-        onClick={() => {
-          setEditingDevice(null);
-          setIsAddEditOpen(true);
-        }}
-        className="sm:hidden fixed bottom-5 right-4 z-40 inline-flex items-center gap-2 px-4 py-3.5 rounded-2xl bg-blue-600 active:bg-blue-700 text-white font-bold text-xs shadow-xl shadow-blue-600/40 cursor-pointer"
-      >
-        <Plus className="w-4 h-4" />
-        <span>+ Nhập máy</span>
-      </button>
 
       {/* Hộp thoại Xem chi tiết & Tải ảnh điện thoại */}
       <DeviceDetailModal

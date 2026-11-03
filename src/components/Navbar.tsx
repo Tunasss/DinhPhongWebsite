@@ -116,56 +116,47 @@ export const Navbar: React.FC<NavbarProps> = ({
       className="sticky top-0 z-30 bg-white/95 dark:bg-slate-950/90 text-slate-900 dark:text-white shadow-sm dark:shadow-xl backdrop-blur-xl border-b border-slate-200 dark:border-slate-800/80 transition-colors"
     >
       <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-1.5 sm:gap-3">
           {/* Logo & Tên Shop */}
-          <div className="nav-element flex items-center gap-3 shrink-0">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 p-0.5 shadow-md shadow-blue-500/20 flex items-center justify-center">
-              <div className="w-full h-full bg-slate-900 rounded-[14px] flex items-center justify-center">
-                <Laptop className="w-5 h-5 text-blue-400" />
+          <div className="nav-element flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 p-0.5 shadow-md shadow-blue-500/20 flex items-center justify-center shrink-0">
+              <div className="w-full h-full bg-slate-900 rounded-[10px] sm:rounded-[14px] flex items-center justify-center">
+                <Laptop className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
               </div>
             </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="font-black text-base sm:text-lg tracking-tight text-slate-900 dark:text-white">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <h1 className="font-black text-sm sm:text-lg tracking-tight text-slate-900 dark:text-white truncate max-w-[120px] xs:max-w-[160px] sm:max-w-none">
                   {settings.shopName || 'Đình Phong Apple'}
                 </h1>
                 <button
                   type="button"
                   onClick={onOpenSettingsModal}
-                  className={`cursor-pointer inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border transition ${
+                  className={`cursor-pointer inline-flex items-center gap-1 px-1.5 sm:px-2.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold border transition shrink-0 ${
                     hasScriptUrl && isCloudConnected
                       ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
                       : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 animate-pulse'
                   }`}
                   title="Bấm để mở cấu hình Google Drive & Sheet"
                 >
-                  {hasScriptUrl ? (
-                    <>
-                      <Cloud className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                      <span>Đã nối Cloud</span>
-                    </>
-                  ) : (
-                    <>
-                      <AlertTriangle className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-                      <span>Nối Google Drive</span>
-                    </>
-                  )}
+                  <Cloud className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span className="hidden xs:inline">{hasScriptUrl ? 'Cloud' : 'Nối Drive'}</span>
                 </button>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block truncate">
                 Hệ thống Quản lý Kho &amp; Bán hàng chuyên nghiệp
               </p>
             </div>
           </div>
 
           {/* Cụm nút thao tác tinh gọn & Menu dạng dropdown hiện đại */}
-          <div className="nav-element flex items-center gap-2 shrink-0">
+          <div className="nav-element flex items-center gap-1 sm:gap-2 shrink-0">
             {/* 1. Nút Đồng bộ Dữ liệu */}
             <button
               type="button"
               onClick={onRefresh}
               disabled={isSyncing}
-              className="p-2 sm:px-3 sm:py-2 rounded-xl border font-semibold text-xs transition cursor-pointer flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 border-slate-300 dark:border-slate-700/80 text-slate-700 dark:text-slate-300 shadow-xs disabled:opacity-50"
+              className="p-1.5 sm:px-3 sm:py-2 rounded-xl border font-semibold text-xs transition cursor-pointer flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 border-slate-300 dark:border-slate-700/80 text-slate-700 dark:text-slate-300 shadow-xs disabled:opacity-50"
               title="Đồng bộ dữ liệu từ Google Sheet"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-blue-500' : ''}`} />
@@ -180,14 +171,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                   setIsCloudMenuOpen((prev) => !prev);
                   setIsProfileMenuOpen(false);
                 }}
-                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition cursor-pointer shadow-xs ${
+                className={`inline-flex items-center gap-1 p-1.5 sm:px-3 sm:py-2 rounded-xl text-xs font-bold border transition cursor-pointer shadow-xs ${
                   isCloudMenuOpen
                     ? 'bg-blue-50 text-blue-700 border-blue-300 dark:bg-slate-800 dark:text-blue-400 dark:border-blue-500/50'
                     : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700/80'
                 }`}
                 title="Dữ liệu Google Sheet & Google Drive"
               >
-                <Cloud className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <FolderOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span className="hidden sm:inline">Drive &amp; Sheet</span>
                 <ChevronDown className={`w-3 h-3 transition-transform ${isCloudMenuOpen ? 'rotate-180' : ''}`} />
               </button>
@@ -271,21 +262,22 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* 3. Nút Nhập sản phẩm (CTA nổi bật nhất) */}
             <button
               onClick={onOpenAddModal}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-bold shadow-md shadow-blue-600/25 transition cursor-pointer transform active:scale-95"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-bold shadow-md shadow-blue-600/25 transition cursor-pointer transform active:scale-95 shrink-0"
             >
-              <Plus className="w-4 h-4" />
-              <span>+ Nhập sản phẩm</span>
+              <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="hidden sm:inline">+ Nhập sản phẩm</span>
+              <span className="sm:hidden">+ Nhập</span>
             </button>
 
             {/* 4. Menu Tài Khoản & Cài Đặt (Profile & Settings Dropdown) */}
-            <div ref={profileMenuRef} className="relative">
+            <div ref={profileMenuRef} className="relative shrink-0">
               <button
                 type="button"
                 onClick={() => {
                   setIsProfileMenuOpen((prev) => !prev);
                   setIsCloudMenuOpen(false);
                 }}
-                className={`flex items-center gap-2 p-1 sm:px-2.5 sm:py-1.5 rounded-xl border transition cursor-pointer shadow-xs ${
+                className={`flex items-center gap-1.5 p-1 sm:px-2.5 sm:py-1.5 rounded-xl border transition cursor-pointer shadow-xs ${
                   isProfileMenuOpen
                     ? 'bg-slate-100 border-slate-300 dark:bg-slate-800 dark:border-slate-700'
                     : 'bg-white hover:bg-slate-100 dark:bg-slate-900/90 dark:hover:bg-slate-800 border-slate-300 dark:border-slate-700/80'
@@ -293,7 +285,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 title="Tài khoản & Tùy chọn hệ thống"
               >
                 <div
-                  className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs uppercase text-white shadow-xs ${
+                  className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center font-bold text-[11px] sm:text-xs uppercase text-white shadow-xs shrink-0 ${
                     isAdmin
                       ? 'bg-gradient-to-tr from-amber-600 to-amber-500'
                       : 'bg-gradient-to-tr from-blue-600 to-indigo-600'
@@ -472,28 +464,28 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Thanh thống kê nhanh kho hàng */}
-        <div className="nav-element grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2.5 pt-2 border-t border-slate-200 dark:border-slate-800/80 text-xs">
-          <div className="bg-slate-100/90 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800/80 rounded-xl px-3 py-1.5 flex items-center justify-between">
+        <div className="nav-element grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 mt-2 pt-2 border-t border-slate-200 dark:border-slate-800/80 text-[11px] sm:text-xs">
+          <div className="bg-slate-100/90 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800/80 rounded-xl px-2 sm:px-3 py-1 sm:py-1.5 flex items-center justify-between">
             <span className="text-slate-600 dark:text-slate-400 font-medium">Sẵn hàng:</span>
-            <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-sm">
+            <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm">
               {availableDevices.length} máy
             </span>
           </div>
-          <div className="bg-slate-100/90 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800/80 rounded-xl px-3 py-1.5 flex items-center justify-between">
+          <div className="bg-slate-100/90 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800/80 rounded-xl px-2 sm:px-3 py-1 sm:py-1.5 flex items-center justify-between">
             <span className="text-slate-600 dark:text-slate-400 font-medium">Đã cọc / Đã bán:</span>
             <span className="font-bold text-amber-700 dark:text-amber-300">
               {depositedDevices.length} cọc • {soldDevices.length} bán
             </span>
           </div>
-          <div className="bg-slate-100/90 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800/80 rounded-xl px-3 py-1.5 flex items-center justify-between">
-            <span className="text-slate-600 dark:text-slate-400 font-medium">Tổng vốn tồn:</span>
-            <span className="font-extrabold text-slate-800 dark:text-slate-100">
+          <div className="bg-slate-100/90 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800/80 rounded-xl px-2 sm:px-3 py-1 sm:py-1.5 flex items-center justify-between">
+            <span className="text-slate-600 dark:text-slate-400 font-medium">Vốn tồn:</span>
+            <span className="font-extrabold text-slate-800 dark:text-slate-100 truncate max-w-[90px] sm:max-w-none text-right">
               {settings.showImportPrice ? formatCurrencyVND(totalStockValue) : '••••••••'}
             </span>
           </div>
-          <div className="bg-slate-100/90 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800/80 rounded-xl px-3 py-1.5 flex items-center justify-between">
-            <span className="text-slate-600 dark:text-slate-400 font-medium">Tổng giá niêm yết:</span>
-            <span className="font-extrabold text-blue-600 dark:text-blue-400">
+          <div className="bg-slate-100/90 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800/80 rounded-xl px-2 sm:px-3 py-1 sm:py-1.5 flex items-center justify-between">
+            <span className="text-slate-600 dark:text-slate-400 font-medium">Giá niêm yết:</span>
+            <span className="font-extrabold text-blue-600 dark:text-blue-400 truncate max-w-[90px] sm:max-w-none text-right">
               {formatCurrencyVND(totalExpectedRevenue)}
             </span>
           </div>

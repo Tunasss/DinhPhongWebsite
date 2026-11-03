@@ -15,6 +15,12 @@ import {
   Search,
   Eye,
   EyeOff,
+  Cloud,
+  RefreshCw,
+  Copy,
+  Check,
+  Smartphone,
+  Download,
 } from 'lucide-react';
 import {
   adminResetPassword,
@@ -22,6 +28,10 @@ import {
   deleteUser,
   getStoredUsers,
   updateUser,
+  syncUsersFromCloud,
+  pushUsersToCloud,
+  exportAccountsSyncCode,
+  importAccountsSyncCode,
   User as UserType,
   UserRole,
 } from '../services/authService';
@@ -57,6 +67,12 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
   const [changingPasswordUser, setChangingPasswordUser] = useState<UserType | null>(null);
   const [newPassInput, setNewPassInput] = useState('');
   const [showPass, setShowPass] = useState(false);
+
+  // Trạng thái đồng bộ Cloud & Mã đồng bộ đa thiết bị
+  const [isSyncingCloud, setIsSyncingCloud] = useState(false);
+  const [showImportSyncCode, setShowImportSyncCode] = useState(false);
+  const [syncCodeInput, setSyncCodeInput] = useState('');
+  const [copiedSyncCode, setCopiedSyncCode] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const modalCardRef = useRef<HTMLDivElement>(null);
@@ -164,6 +180,45 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
     }
   };
 
+  const handleCloudSync = async () => {
+    setIsSyncingCloud(true);
+    try {
+      await pushUsersToCloud(users);
+      const res = await syncUsersFromCloud();
+      if (res.success) {
+        setUsers(res.users);
+        onNotify('Đã đồng bộ tài khoản với Google Sheets (tab TaiKhoan_NhanSu) thành công!');
+      } else {
+        onNotify(res.message || 'Chưa thể kết nối Google Sheets.');
+      }
+    } catch (err: any) {
+      onNotify(err?.message || 'Lỗi kết nối');
+    } finally {
+      setIsSyncingCloud(false);
+    }
+  };
+
+  const handleCopySyncCode = () => {
+    const code = exportAccountsSyncCode();
+    navigator.clipboard.writeText(code);
+    setCopiedSyncCode(true);
+    onNotify('Đã copy mã đồng bộ! Bạn có thể dán mã này vào điện thoại để nhận đủ tài khoản tức thì.');
+    setTimeout(() => setCopiedSyncCode(false), 2500);
+  };
+
+  const handleImportSyncCode = (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = importAccountsSyncCode(syncCodeInput);
+    if (res.success) {
+      onNotify(`Đã đồng bộ thành công ${res.count} tài khoản vào thiết bị này!`);
+      refreshList();
+      setShowImportSyncCode(false);
+      setSyncCodeInput('');
+    } else {
+      onNotify(res.message || 'Lỗi nhập mã đồng bộ');
+    }
+  };
+
   const filteredUsers = users.filter((u) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
@@ -234,6 +289,88 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
               <span>{isAddingNew ? 'Ẩn form thêm mới' : '+ Tạo tài khoản mới'}</span>
             </button>
           </div>
+
+          {/* Thanh công cụ Đồng bộ tài khoản đa thiết bị (Google Sheets & Mã đồng bộ) */}
+          <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 text-xs">
+            <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-semibold">
+              <Cloud className="w-4 h-4 text-blue-500" />
+              <span>Đồng bộ PC ⟷ Điện thoại:</span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleCloudSync}
+                disabled={isSyncingCloud}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold transition cursor-pointer shadow-xs disabled:opacity-50"
+                title="Lưu hoặc lấy danh sách tài khoản từ Google Sheets (tab TaiKhoan_NhanSu)"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 ${isSyncingCloud ? 'animate-spin' : ''}`} />
+                <span>{isSyncingCloud ? 'Đang đồng bộ...' : 'Đồng bộ Google Sheets'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopySyncCode}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold transition cursor-pointer shadow-xs"
+                title="Sao chép toàn bộ tài khoản để dán sang thiết bị khác"
+              >
+                {copiedSyncCode ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Đã chép mã</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5 text-blue-500" />
+                    <span>Chép mã đồng bộ</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowImportSyncCode(!showImportSyncCode)}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold transition cursor-pointer shadow-xs"
+                title="Dán mã đồng bộ được gửi từ máy khác"
+              >
+                <Smartphone className="w-3.5 h-3.5 text-purple-500" />
+                <span>Dán mã từ máy khác</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Form dán mã đồng bộ */}
+          {showImportSyncCode && (
+            <form onSubmit={handleImportSyncCode} className="p-3.5 rounded-2xl bg-purple-50/60 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800/60 space-y-2.5 animate-fadeIn">
+              <div className="flex items-center justify-between text-xs font-bold text-purple-900 dark:text-purple-300">
+                <span>Dán chuỗi mã đồng bộ tài khoản nhận từ thiết bị khác:</span>
+                <button
+                  type="button"
+                  onClick={() => setShowImportSyncCode(false)}
+                  className="text-slate-400 hover:text-slate-700 dark:hover:text-white"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Dán mã đồng bộ vào đây (chuỗi ký tự dài)..."
+                  value={syncCodeInput}
+                  onChange={(e) => setSyncCodeInput(e.target.value)}
+                  className="flex-1 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-700 text-xs text-slate-900 dark:text-white focus:outline-none"
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition cursor-pointer shadow-sm"
+                >
+                  Nhập ngay
+                </button>
+              </div>
+            </form>
+          )}
 
           {/* Form thêm tài khoản mới */}
           {isAddingNew && (

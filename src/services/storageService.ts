@@ -25,7 +25,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 /**
  * Gọi Google Apps Script thông qua Node.js / Vercel Serverless Proxy (/api/gas-proxy) để tránh lỗi CORS
  */
-async function callGoogleAppsScript(
+export async function callGoogleAppsScript(
   gasUrl: string,
   method: 'GET' | 'POST',
   payload?: Record<string, unknown>

@@ -1,3 +1,5 @@
+import { callGoogleAppsScript, loadSettings } from './storageService';
+
 export type UserRole = 'admin' | 'staff';
 
 export interface User {
@@ -10,9 +12,17 @@ export interface User {
   isActive: boolean;
   lastLogin?: string;
   phone?: string;
+  updatedAt?: string;
 }
 
 const STORAGE_KEY_USERS = 'dinhphong_users_v2';
+const LEGACY_STORAGE_KEYS = [
+  'dinhphong_users_v2',
+  'dinhphong_users',
+  'dinhphong_accounts',
+  'dinhphong_apple_users',
+  'users',
+];
 const STORAGE_KEY_CURRENT_USER = 'dinhphong_current_user_v2';
 const SECURITY_SALT = '_dp_salt_2026';
 
@@ -164,36 +174,62 @@ const SEED_ACCOUNTS: User[] = [
 ];
 
 /**
- * Lấy danh sách tài khoản đã lưu trong LocalStorage.
+ * Lấy danh sách tài khoản đã lưu trong LocalStorage (hỗ trợ đọc fallback và tự động nâng cấp dữ liệu qua mọi phiên bản).
  * Nếu chưa có danh sách, tự khởi tạo danh sách 6 tài khoản mặc định.
  */
 export function getStoredUsers(): User[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_USERS);
-    if (!raw) {
-      localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(SEED_ACCOUNTS));
-      return SEED_ACCOUNTS;
-    }
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(SEED_ACCOUNTS));
-      return SEED_ACCOUNTS;
-    }
+    let parsed: User[] | null = null;
 
-    // Đảm bảo 6 tài khoản mặc định (ADMIN, anhvu, vonguyen, phantuan, anhtuan, dinhphong) luôn tồn tại
-    let hasUpdated = false;
-    const existingUsernames = new Set(parsed.map((u: any) => (u.username || '').toLowerCase()));
-    for (const seed of SEED_ACCOUNTS) {
-      if (!existingUsernames.has(seed.username.toLowerCase())) {
-        parsed.push(seed);
-        hasUpdated = true;
+    // Tìm dữ liệu trong danh sách các key lưu trữ qua các phiên bản
+    for (const key of LEGACY_STORAGE_KEYS) {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        try {
+          const list = JSON.parse(raw);
+          if (Array.isArray(list) && list.length > 0) {
+            parsed = list;
+            break;
+          }
+        } catch {
+          // Bỏ qua lỗi parse của key cũ
+        }
       }
     }
-    if (hasUpdated) {
-      localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(parsed));
+
+    if (!parsed || !Array.isArray(parsed) || parsed.length === 0) {
+      localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(SEED_ACCOUNTS));
+      localStorage.setItem('dinhphong_users', JSON.stringify(SEED_ACCOUNTS));
+      return SEED_ACCOUNTS;
     }
 
-    return parsed;
+    // Nâng cấp & chuẩn hóa các user đã lưu (chuyển password cũ sang SHA-256 hash nếu có)
+    let hasMigrated = false;
+    const normalized: User[] = parsed.map((u: any) => {
+      const copy = { ...u };
+      if (!copy.passwordHash && copy.password) {
+        copy.passwordHash = hashPassword(copy.password);
+        delete copy.password;
+        hasMigrated = true;
+      }
+      return copy as User;
+    });
+
+    // Đảm bảo các tài khoản seed mặc định luôn tồn tại nếu chưa có
+    const existingUsernames = new Set(normalized.map((u) => (u.username || '').toLowerCase()));
+    for (const seed of SEED_ACCOUNTS) {
+      if (!existingUsernames.has(seed.username.toLowerCase())) {
+        normalized.push(seed);
+        hasMigrated = true;
+      }
+    }
+
+    if (hasMigrated || !localStorage.getItem(STORAGE_KEY_USERS)) {
+      localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(normalized));
+      localStorage.setItem('dinhphong_users', JSON.stringify(normalized));
+    }
+
+    return normalized;
   } catch (err) {
     console.error('Lỗi đọc danh sách tài khoản:', err);
     return SEED_ACCOUNTS;
@@ -218,13 +254,163 @@ export function getStaffNames(): string[] {
 }
 
 /**
- * Lưu danh sách tài khoản vào LocalStorage
+ * Lưu danh sách tài khoản vào LocalStorage và tự động đồng bộ lên Google Sheets (tab TaiKhoan_NhanSu)
  */
-export function saveStoredUsers(users: User[]): void {
+export function saveStoredUsers(
+  users: User[],
+  options?: { skipCloudSync?: boolean }
+): void {
   try {
     localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
+    localStorage.setItem('dinhphong_users', JSON.stringify(users));
+
+    // Phát sự kiện thông báo các component cập nhật danh sách
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('dinhphong_users_updated', { detail: users }));
+    }
+
+    // Tự động đẩy lên Google Sheets nếu không bị chặn bởi cờ skipCloudSync
+    if (!options?.skipCloudSync) {
+      pushUsersToCloud(users).catch((err) => {
+        console.warn('Đồng bộ tài khoản lên cloud ở chế độ nền:', err);
+      });
+    }
   } catch (err) {
     console.error('Lỗi lưu danh sách tài khoản:', err);
+  }
+}
+
+/**
+ * Đẩy toàn bộ danh sách tài khoản lên Google Sheets (Lưu vào tab TaiKhoan_NhanSu)
+ */
+export async function pushUsersToCloud(
+  usersToPush?: User[]
+): Promise<{ success: boolean; count?: number; message?: string }> {
+  try {
+    const users = usersToPush || getStoredUsers();
+    const settings = loadSettings();
+    if (!settings.gasWebAppUrl || !settings.gasWebAppUrl.trim()) {
+      return { success: false, message: 'Chưa cấu hình Google Apps Script' };
+    }
+
+    const res = await callGoogleAppsScript(settings.gasWebAppUrl, 'POST', {
+      action: 'saveAccounts',
+      rootFolderId: settings.driveRootFolderId,
+      users: users,
+    });
+
+    if (res && res.ok) {
+      return { success: true, count: users.length };
+    }
+    return { success: false, message: res?.error || 'Lỗi lưu tài khoản lên Google Sheet' };
+  } catch (err: any) {
+    return { success: false, message: err?.message || String(err) };
+  }
+}
+
+/**
+ * Đồng bộ kéo danh sách tài khoản mới nhất từ Google Sheets về máy / điện thoại
+ */
+export async function syncUsersFromCloud(): Promise<{
+  success: boolean;
+  users: User[];
+  message?: string;
+}> {
+  try {
+    const localUsers = getStoredUsers();
+    const settings = loadSettings();
+    if (!settings.gasWebAppUrl || !settings.gasWebAppUrl.trim()) {
+      return { success: false, users: localUsers, message: 'Chưa cấu hình Google Apps Script' };
+    }
+
+    const res = await callGoogleAppsScript(settings.gasWebAppUrl, 'GET', {
+      action: 'getAccounts',
+      rootFolderId: settings.driveRootFolderId,
+    });
+
+    if (res && res.ok && Array.isArray(res.users) && res.users.length > 0) {
+      // Hợp nhất danh sách đám mây và danh sách nội bộ
+      const cloudUsers: User[] = res.users;
+      const userMap = new Map<string, User>();
+
+      // Đưa local users vào map trước
+      localUsers.forEach((u) => {
+        userMap.set(u.username.toLowerCase(), u);
+      });
+
+      // Ghi đè/cập nhật thông tin từ Cloud Sheet
+      cloudUsers.forEach((cu) => {
+        const key = (cu.username || '').toLowerCase();
+        if (!key) return;
+        const existing = userMap.get(key);
+        if (existing) {
+          userMap.set(key, {
+            ...existing,
+            passwordHash: cu.passwordHash || existing.passwordHash,
+            displayName: cu.displayName || existing.displayName,
+            role: cu.role || existing.role,
+            isActive: cu.isActive !== undefined ? cu.isActive : existing.isActive,
+            phone: cu.phone || existing.phone,
+            updatedAt: cu.updatedAt || existing.updatedAt,
+          });
+        } else {
+          userMap.set(key, cu);
+        }
+      });
+
+      const mergedUsers = Array.from(userMap.values());
+      saveStoredUsers(mergedUsers, { skipCloudSync: true });
+      return { success: true, users: mergedUsers };
+    }
+
+    return { success: false, users: localUsers, message: res?.error || 'Không có dữ liệu tài khoản trên Sheet' };
+  } catch (err: any) {
+    return { success: false, users: getStoredUsers(), message: err?.message || String(err) };
+  }
+}
+
+/**
+ * Xuất mã đồng bộ tài khoản dạng chuỗi Base64 an toàn để chuyển sang thiết bị khác tức thì
+ */
+export function exportAccountsSyncCode(): string {
+  try {
+    const users = getStoredUsers();
+    const jsonStr = JSON.stringify(users);
+    return btoa(unescape(encodeURIComponent(jsonStr)));
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Nhập mã đồng bộ tài khoản từ thiết bị khác để cập nhật ngay lập tức
+ */
+export function importAccountsSyncCode(code: string): {
+  success: boolean;
+  count?: number;
+  message?: string;
+} {
+  try {
+    const clean = (code || '').trim();
+    if (!clean) return { success: false, message: 'Mã đồng bộ trống.' };
+    const jsonStr = decodeURIComponent(escape(atob(clean)));
+    const imported = JSON.parse(jsonStr);
+    if (!Array.isArray(imported) || imported.length === 0) {
+      return { success: false, message: 'Dữ liệu mã đồng bộ không hợp lệ.' };
+    }
+
+    const localUsers = getStoredUsers();
+    const userMap = new Map<string, User>();
+    localUsers.forEach((u) => userMap.set(u.username.toLowerCase(), u));
+    imported.forEach((u: any) => {
+      if (u.username) userMap.set(u.username.toLowerCase(), u);
+    });
+
+    const merged = Array.from(userMap.values());
+    saveStoredUsers(merged);
+    return { success: true, count: merged.length };
+  } catch (err: any) {
+    return { success: false, message: 'Mã đồng bộ không đúng định dạng: ' + (err?.message || '') };
   }
 }
 

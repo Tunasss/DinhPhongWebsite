@@ -13,6 +13,22 @@ const DEFAULT_ROOT_FOLDER_ID = '1fTKgedG4yGx6c9Sc96-385DHYWPv-CyT';
 const DEFAULT_SHEET_ID = '1hrn38CRokXNRRMQalwelBXLuYplY_2-m2Uybpz-9sQI';
 const RAW_SHEET_FILE_NAME = 'DinhPhong_DuLieuTho_KhoMay';
 const SHEET_TAB_NAME = 'DuLieuTho_KhoMay';
+const ACCOUNTS_TAB_NAME = 'TaiKhoan_NhanSu';
+
+function getOrCreateAccountsSheet(ss) {
+  let sheet = ss.getSheetByName(ACCOUNTS_TAB_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(ACCOUNTS_TAB_NAME);
+    const headers = ['id', 'username', 'passwordHash', 'displayName', 'role', 'isActive', 'phone', 'createdAt', 'updatedAt'];
+    sheet.appendRow(headers);
+    sheet.getRange(1, 1, 1, headers.length)
+      .setFontWeight('bold')
+      .setBackground('#0f172a')
+      .setFontColor('#ffffff');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
 
 function CAP_QUYEN_VA_TAO_SHEET_NGAY() {
   const res = getOrCreateSpreadsheetInDriveFolder(DEFAULT_ROOT_FOLDER_ID);
@@ -124,7 +140,30 @@ function getOrCreateSpreadsheetInDriveFolder(rootFolderId) {
 function doGet(e) {
   try {
     const rootFolderId = (e && e.parameter && e.parameter.rootFolderId) || DEFAULT_ROOT_FOLDER_ID;
+    const reqAction = e && e.parameter && e.parameter.action;
     const { ss, sheet, rootFolder } = getOrCreateSpreadsheetInDriveFolder(rootFolderId);
+
+    // Xử lý lấy danh sách tài khoản
+    if (reqAction === 'getAccounts') {
+      const accSheet = getOrCreateAccountsSheet(ss);
+      const accData = accSheet.getDataRange().getValues();
+      const users = [];
+      if (accData.length > 1) {
+        const accHeaders = accData[0];
+        for (let i = 1; i < accData.length; i++) {
+          const row = accData[i];
+          if (!row[0] || !row[1]) continue;
+          const u = {};
+          accHeaders.forEach((h, idx) => {
+            u[h] = row[idx];
+          });
+          u.isActive = u.isActive === true || u.isActive === 'TRUE' || u.isActive === 'true';
+          users.push(u);
+        }
+      }
+      return jsonResponse({ ok: true, users: users });
+    }
+
     const data = sheet.getDataRange().getValues();
     if (data.length <= 1) {
       return jsonResponse({
@@ -172,6 +211,31 @@ function doPost(e) {
   try {
     const payload = JSON.parse(e.postData.contents);
     const action = payload.action;
+
+    if (action === 'saveAccounts') {
+      const rootFolderId = payload.rootFolderId || DEFAULT_ROOT_FOLDER_ID;
+      const { ss } = getOrCreateSpreadsheetInDriveFolder(rootFolderId);
+      const accSheet = getOrCreateAccountsSheet(ss);
+      const users = payload.users || [];
+      const lastRow = accSheet.getLastRow();
+      if (lastRow > 1) {
+        accSheet.getRange(2, 1, lastRow - 1, accSheet.getLastColumn()).clearContent();
+      }
+      users.forEach((u) => {
+        accSheet.appendRow([
+          u.id || '',
+          u.username || '',
+          u.passwordHash || '',
+          u.displayName || '',
+          u.role || 'staff',
+          u.isActive !== false ? 'TRUE' : 'FALSE',
+          u.phone || '',
+          u.createdAt || '',
+          new Date().toISOString()
+        ]);
+      });
+      return jsonResponse({ ok: true, count: users.length });
+    }
 
     if (action === 'initDriveAndSheet') {
       const { ss, rootFolder } = getOrCreateSpreadsheetInDriveFolder(payload.rootFolderId);
