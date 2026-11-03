@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { X, KeyRound, Eye, EyeOff, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
-import { changeMyPassword, User } from '../services/authService';
+import { changeMyPassword, pushUsersToCloud, User } from '../services/authService';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 
@@ -68,7 +68,12 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
     try {
       const res = changeMyPassword(currentUser.id, currentPass, newPass);
       if (res.success) {
-        onNotify('Đổi mật khẩu thành công! Hãy ghi nhớ mật khẩu mới của bạn.');
+        onNotify('Đổi mật khẩu thành công! Đang đồng bộ lên Google Sheets...');
+        pushUsersToCloud().then((syncRes) => {
+          if (syncRes.success) {
+            onNotify('Đã cập nhật mật khẩu mới lên Google Sheets thành công!');
+          }
+        });
         onClose();
         setCurrentPass('');
         setNewPass('');

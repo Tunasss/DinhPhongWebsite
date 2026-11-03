@@ -62,8 +62,26 @@ export async function callGoogleAppsScript(
     fetchInit.headers = { 'Content-Type': 'text/plain;charset=utf-8' };
     fetchInit.body = JSON.stringify(payload);
   }
-  const res = await fetch(cleanUrl, fetchInit);
-  return await res.json();
+  try {
+    const res = await fetch(cleanUrl, fetchInit);
+    return await res.json();
+  } catch (directErr) {
+    // Nếu trình duyệt chặn đọc response do CORS, gửi lại qua mode: 'no-cors' để Google Apps Script vẫn nhận lệnh và ghi vào Sheet
+    if (method === 'POST' && payload) {
+      try {
+        await fetch(cleanUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload),
+        });
+        return { ok: true, fallbackNoCors: true };
+      } catch {
+        throw directErr;
+      }
+    }
+    throw directErr;
+  }
 }
 
 export function normalizeDriveFolderId(input: string): string {

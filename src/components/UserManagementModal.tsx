@@ -95,7 +95,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
     setUsers(getStoredUsers());
   };
 
-  const handleCreateUser = (e: React.FormEvent) => {
+  const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
@@ -108,7 +108,6 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
     });
 
     if (res.success && res.user) {
-      onNotify(`Đã tạo thành công tài khoản "${res.user.displayName}" (${res.user.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'})!`);
       refreshList();
       setIsAddingNew(false);
       setNewUsername('');
@@ -116,12 +115,19 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
       setNewDisplayName('');
       setNewRole('staff');
       setNewPhone('');
+      onNotify(`Đang lưu & đồng bộ "${res.user.displayName}" lên Google Sheets...`);
+      const syncRes = await pushUsersToCloud();
+      if (syncRes.success) {
+        onNotify(`Đã tạo "${res.user.displayName}" và đồng bộ lên Google Sheets tab TaiKhoan_NhanSu!`);
+      } else {
+        onNotify(`Đã lưu "${res.user.displayName}".`);
+      }
     } else {
       setFormError(res.message || 'Lỗi khi tạo tài khoản');
     }
   };
 
-  const handleToggleActive = (targetUser: UserType) => {
+  const handleToggleActive = async (targetUser: UserType) => {
     if (targetUser.username.toUpperCase() === 'ADMIN') {
       onNotify('Không thể khóa tài khoản ADMIN mặc định.');
       return;
@@ -135,12 +141,13 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
           ? `Đã kích hoạt lại tài khoản ${targetUser.username}.`
           : `Đã tạm khóa tài khoản ${targetUser.username}.`
       );
+      await pushUsersToCloud();
     } else {
       onNotify(res.message || 'Không thể đổi trạng thái.');
     }
   };
 
-  const handleDelete = (targetUser: UserType) => {
+  const handleDelete = async (targetUser: UserType) => {
     if (targetUser.username.toUpperCase() === 'ADMIN') {
       onNotify('Không thể xóa tài khoản ADMIN gốc của hệ thống.');
       return;
@@ -159,22 +166,29 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
       if (res.success) {
         refreshList();
         onNotify(`Đã xóa tài khoản ${targetUser.username}.`);
+        await pushUsersToCloud();
       } else {
         onNotify(res.message || 'Lỗi khi xóa.');
       }
     }
   };
 
-  const handleChangePasswordSubmit = (e: React.FormEvent) => {
+  const handleChangePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!changingPasswordUser) return;
 
     const res = adminResetPassword(currentUser, changingPasswordUser.id, newPassInput);
     if (res.success) {
-      onNotify(`Đã đổi mật khẩu cho tài khoản "${changingPasswordUser.username}" thành công!`);
       setChangingPasswordUser(null);
       setNewPassInput('');
       refreshList();
+      onNotify('Đang đồng bộ mật khẩu mới lên Google Sheets...');
+      const syncRes = await pushUsersToCloud();
+      if (syncRes.success) {
+        onNotify(`Đã đổi mật khẩu cho @${changingPasswordUser.username} và lưu vào Google Sheet thành công!`);
+      } else {
+        onNotify(`Đã đổi mật khẩu thành công.`);
+      }
     } else {
       onNotify(res.message || 'Đổi mật khẩu thất bại.');
     }
