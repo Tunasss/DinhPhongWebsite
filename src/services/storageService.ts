@@ -8,7 +8,7 @@ import {
 } from '../data/mockDevices';
 
 const DEVICES_STORAGE_KEY = 'dinhphong_apple_devices_v3';
-const SETTINGS_STORAGE_KEY = 'dinhphong_apple_settings_v4';
+const SETTINGS_STORAGE_KEY = 'dinhphong_apple_settings_v5';
 
 export const USER_GAS_WEB_APP_URL =
   'https://script.google.com/macros/s/AKfycbwoHvW6gL5qrA5g2SbDC4uzXnyRZQuZuMIYOTYLRJq2xSmSvyxqrzurDYhTpjOycF8/exec';
@@ -17,7 +17,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   gasWebAppUrl: USER_GAS_WEB_APP_URL,
   driveRootFolderId: SHOP_DRIVE_ROOT_FOLDER_ID,
   geminiApiKey: '',
-  organizeByCategory: false,
+  organizeByCategory: true, // MẶC ĐỊNH LUÔN GOM NHÓM THEO DÒNG MÁY
   showImportPrice: true,
   shopName: 'Đình Phong Apple',
 };
@@ -101,25 +101,51 @@ export function getDriveFolderLink(folderIdOrUrl: string): string {
 
 export function loadSettings(): AppSettings {
   try {
+    const rawV5 = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (rawV5) {
+      const parsed = JSON.parse(rawV5);
+      let gasUrl = (parsed.gasWebAppUrl || USER_GAS_WEB_APP_URL).trim();
+      if (gasUrl.includes('AKfycbyv0wCg')) {
+        gasUrl = USER_GAS_WEB_APP_URL;
+      }
+      return {
+        ...DEFAULT_SETTINGS,
+        ...parsed,
+        gasWebAppUrl: gasUrl,
+        organizeByCategory:
+          parsed.organizeByCategory !== undefined ? Boolean(parsed.organizeByCategory) : true,
+        driveRootFolderId: normalizeDriveFolderId(
+          parsed.driveRootFolderId || SHOP_DRIVE_ROOT_FOLDER_ID
+        ),
+      };
+    }
+
     const raw =
-      localStorage.getItem(SETTINGS_STORAGE_KEY) ||
+      localStorage.getItem('dinhphong_apple_settings_v4') ||
       localStorage.getItem('dinhphong_apple_settings_v3') ||
       localStorage.getItem('dinhphong_apple_settings_v2');
-    if (!raw) return DEFAULT_SETTINGS;
+
+    if (!raw) {
+      saveSettings(DEFAULT_SETTINGS);
+      return DEFAULT_SETTINGS;
+    }
+
     const parsed = JSON.parse(raw);
     let gasUrl = (parsed.gasWebAppUrl || USER_GAS_WEB_APP_URL).trim();
-    // Tự động nâng cấp URL nếu còn lưu URL cũ bị lỗi 403
     if (gasUrl.includes('AKfycbyv0wCg')) {
       gasUrl = USER_GAS_WEB_APP_URL;
     }
-    return {
+    const settings: AppSettings = {
       ...DEFAULT_SETTINGS,
       ...parsed,
       gasWebAppUrl: gasUrl,
+      organizeByCategory: true, // MẶC ĐỊNH BẬT GOM NHÓM THEO YÊU CẦU
       driveRootFolderId: normalizeDriveFolderId(
         parsed.driveRootFolderId || SHOP_DRIVE_ROOT_FOLDER_ID
       ),
     };
+    saveSettings(settings);
+    return settings;
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -484,7 +510,7 @@ export async function upsertDevice(
           images: imagesWithBase64,
         },
         rootFolderId: rootId,
-        organizeByCategory: settings.organizeByCategory,
+        organizeByCategory: settings.organizeByCategory !== false,
       });
 
       if (data && data.ok && data.device) {

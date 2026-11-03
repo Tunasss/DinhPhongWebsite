@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Cloud,
@@ -41,16 +41,28 @@ export const GoogleSetupModal: React.FC<GoogleSetupModalProps> = ({
   onNotify,
   onSyncCompleted,
 }) => {
-  if (!isOpen) return null;
-
   const [shopName, setShopName] = useState(settings.shopName);
   const [gasWebAppUrl, setGasWebAppUrl] = useState(settings.gasWebAppUrl);
   const [driveRootFolderId, setDriveRootFolderId] = useState(settings.driveRootFolderId);
   const [geminiApiKey, setGeminiApiKey] = useState(settings.geminiApiKey);
-  const [organizeByCategory, setOrganizeByCategory] = useState(settings.organizeByCategory);
+  const [organizeByCategory, setOrganizeByCategory] = useState(
+    settings.organizeByCategory !== undefined ? settings.organizeByCategory : true
+  );
   const [copiedScript, setCopiedScript] = useState(false);
   const [isPushingToDrive, setIsPushingToDrive] = useState(false);
   const [pushStatus, setPushStatus] = useState<string>('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setShopName(settings.shopName);
+      setGasWebAppUrl(settings.gasWebAppUrl);
+      setDriveRootFolderId(settings.driveRootFolderId);
+      setGeminiApiKey(settings.geminiApiKey);
+      setOrganizeByCategory(
+        settings.organizeByCategory !== undefined ? settings.organizeByCategory : true
+      );
+    }
+  }, [isOpen, settings]);
 
   const buildUpdatedSettings = (): AppSettings => ({
     ...settings,
@@ -113,6 +125,8 @@ export const GoogleSetupModal: React.FC<GoogleSetupModalProps> = ({
   };
 
   const resolvedDriveUrl = getDriveFolderLink(driveRootFolderId);
+
+  if (!isOpen) return null;
 
   return (
     <div
@@ -305,9 +319,8 @@ export const GoogleSetupModal: React.FC<GoogleSetupModalProps> = ({
                 onChange={(e) => setOrganizeByCategory(e.target.checked)}
                 className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
               />
-              <span className="text-xs text-slate-700 dark:text-slate-300 font-medium">
-                Gom nhóm theo thư mục Dòng máy (Bỏ tích để tạo thẳng Folder{' '}
-                <code>[Serial - Tên máy]</code> ngay ngoài <code>DinhPhongData</code>)
+              <span className="text-xs text-slate-700 dark:text-slate-300 font-semibold">
+                Gom nhóm theo thư mục Dòng máy (Mặc định: BẬT để tự động gom vào MacBook Air, MacBook Pro, iPad...)
               </span>
             </label>
           </div>

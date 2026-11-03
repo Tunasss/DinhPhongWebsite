@@ -524,15 +524,17 @@ export const App: React.FC = () => {
       )}
 
       {/* Hộp thoại Cấu hình Google Drive, Sheets & Gemini AI */}
-      <GoogleSetupModal
-        isOpen={isSettingsOpen}
-        settings={settings}
-        devices={devices}
-        onClose={() => setIsSettingsOpen(false)}
-        onSaveSettings={handleSaveSettings}
-        onNotify={showToast}
-        onSyncCompleted={() => syncInventory(loadSettings())}
-      />
+      {isSettingsOpen && (
+        <GoogleSetupModal
+          isOpen={isSettingsOpen}
+          settings={settings}
+          devices={devices}
+          onClose={() => setIsSettingsOpen(false)}
+          onSaveSettings={handleSaveSettings}
+          onNotify={showToast}
+          onSyncCompleted={() => syncInventory(loadSettings())}
+        />
+      )}
 
       {/* Hộp thoại Quản lý tài khoản đăng nhập (Chỉ dành cho Admin) */}
       {isUserManagementOpen && (

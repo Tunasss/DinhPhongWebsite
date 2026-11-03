@@ -295,12 +295,14 @@ function doPost(e) {
   }
 }
 
-function getOrCreateSerialFolder(rootFolder, serial, title, productLine, organizeByCategory) {
+function getOrCreateSerialFolder(rootFolder, serial, title, productLine, organizeByCategory, deviceType) {
   let parentFolder = rootFolder;
 
-  if (organizeByCategory && productLine) {
-    const catFolders = rootFolder.getFoldersByName(productLine);
-    parentFolder = catFolders.hasNext() ? catFolders.next() : rootFolder.createFolder(productLine);
+  // Gom nhóm theo dòng máy (MacBook Air, MacBook Pro, iPad Pro, iPad Gen...) hoặc loại thiết bị
+  const folderCategory = (productLine || deviceType || 'Khác').trim();
+  if (organizeByCategory && folderCategory) {
+    const catFolders = rootFolder.getFoldersByName(folderCategory);
+    parentFolder = catFolders.hasNext() ? catFolders.next() : rootFolder.createFolder(folderCategory);
   }
 
   const cleanSerial = (serial || 'NO_SERIAL').trim().toUpperCase();
@@ -325,14 +327,16 @@ function handleSaveDevice(payload) {
   const rootFolderId = payload.rootFolderId || DEFAULT_ROOT_FOLDER_ID;
   const { ss, sheet, rootFolder } = getOrCreateSpreadsheetInDriveFolder(rootFolderId);
   const device = payload.device;
-  const organizeByCategory = payload.organizeByCategory === true;
+  // MẶC ĐỊNH LUÔN GOM NHÓM THEO DÒNG MÁY (organizeByCategory !== false)
+  const organizeByCategory = payload.organizeByCategory !== false;
 
   const targetFolder = getOrCreateSerialFolder(
     rootFolder,
     device.serial,
     device.title,
     device.productLine,
-    organizeByCategory
+    organizeByCategory,
+    device.deviceType
   );
   const driveFolderId = targetFolder.getId();
   const driveFolderUrl = targetFolder.getUrl();
