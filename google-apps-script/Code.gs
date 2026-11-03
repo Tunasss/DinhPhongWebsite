@@ -32,7 +32,24 @@ function getOrCreateAccountsSheet(ss) {
 
 function CAP_QUYEN_VA_TAO_SHEET_NGAY() {
   const res = getOrCreateSpreadsheetInDriveFolder(DEFAULT_ROOT_FOLDER_ID);
-  // Kiểm tra quyền tạo Folder con trong DinhPhongData luôn
+  
+  // 1. Tự động tạo Tab TaiKhoan_NhanSu và nạp 6 tài khoản mặc định
+  const accSheet = getOrCreateAccountsSheet(res.ss);
+  if (accSheet.getLastRow() <= 1) {
+    const seedAccounts = [
+      ['usr_admin', 'ADMIN', 'c1698be9631f13ea7c946cc40023d7d498790c370981d2a5bed0f5acdbb99881', 'Quản trị viên (ADMIN)', 'admin', 'TRUE', '0901234567', new Date().toISOString(), new Date().toISOString()],
+      ['usr_anhvu', 'anhvu', '8765e25b490cc0e6c13862bc330f31c84dbf0dd8db74c5d30638eb1e88010331', 'Anh Vũ', 'staff', 'TRUE', '', new Date().toISOString(), new Date().toISOString()],
+      ['usr_vonguyen', 'vonguyen', '8765e25b490cc0e6c13862bc330f31c84dbf0dd8db74c5d30638eb1e88010331', 'Võ Nguyên', 'staff', 'TRUE', '', new Date().toISOString(), new Date().toISOString()],
+      ['usr_phantuan', 'phantuan', '8765e25b490cc0e6c13862bc330f31c84dbf0dd8db74c5d30638eb1e88010331', 'Phan Tuấn', 'staff', 'TRUE', '', new Date().toISOString(), new Date().toISOString()],
+      ['usr_anhtuan', 'anhtuan', '8765e25b490cc0e6c13862bc330f31c84dbf0dd8db74c5d30638eb1e88010331', 'Anh Tuấn', 'staff', 'TRUE', '', new Date().toISOString(), new Date().toISOString()],
+      ['usr_dinhphong', 'dinhphong', '8765e25b490cc0e6c13862bc330f31c84dbf0dd8db74c5d30638eb1e88010331', 'Đình Phong', 'staff', 'TRUE', '', new Date().toISOString(), new Date().toISOString()]
+    ];
+    seedAccounts.forEach(function(row) {
+      accSheet.appendRow(row);
+    });
+  }
+
+  // 2. Kiểm tra quyền tạo Folder con trong DinhPhongData luôn
   const testFolder = getOrCreateSerialFolder(
     res.rootFolder,
     'C24WT1P2GL',
@@ -41,7 +58,7 @@ function CAP_QUYEN_VA_TAO_SHEET_NGAY() {
     false
   );
   Logger.log('✅ ĐÃ KẾT NỐI THÀNH CÔNG FOLDER: ' + res.rootFolder.getName());
-  Logger.log('✅ ĐÃ TẠO THỬ FOLDER MÁY: ' + testFolder.getUrl());
+  Logger.log('✅ ĐÃ TẠO THÀNH CÔNG TAB: ' + accSheet.getName() + ' (Có ' + accSheet.getLastRow() + ' dòng)');
   Logger.log('✅ ĐÃ MỞ FILE SHEET DỮ LIỆU THÔ: ' + res.ss.getUrl());
 }
 
