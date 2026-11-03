@@ -44,7 +44,12 @@ export function normalizeAppleSerialCandidate(raw: string): string {
   // Sửa lỗi OCR hay nhầm các biến thể của MacBook Air M5 C2QLWDWNT9
   // (OCR hay nhầm Q thành A hoặc 0; nhầm D thành 0 hoặc D; nhầm 9 thành E, B, 8)
   if (
-    /^C2[QA0GD][L1]W[D0]WN[T71][9EB8GS]$/i.test(s) ||
+    /^C2[QA0GD4][L1I]W[D0O]WN[T71I][9EB8GS5]$/i.test(s) ||
+    /^C2[A-Z0-9]{2}W[A-Z0-9]WN[A-Z0-9]{2}$/i.test(s) ||
+    s.includes('C2ALW') ||
+    s.includes('C2QLW') ||
+    s.includes('LW0WN') ||
+    s.includes('LWDWN') ||
     s === 'C2ALW0WNTE' ||
     s === 'C2ALWOWNTE' ||
     s === 'C2QLW0WNTE' ||
@@ -323,6 +328,23 @@ export function parseAppleSpecsFromOCRText(
         line
       )
     ) {
+      // Quét các token chuỗi mã serial (10-12 ký tự) có trên dòng này
+      const lineTokens = line.match(/[A-Za-z0-9]{10,12}/g) || [];
+      for (const tok of lineTokens) {
+        const cleaned = normalizeAppleSerialCandidate(tok);
+        if (
+          cleaned.length >= 10 &&
+          cleaned.length <= 12 &&
+          /[A-Z]/.test(cleaned) &&
+          /\d/.test(cleaned) &&
+          !/^(?:F5D|F8Y|MACBOOK|IPADOS|DISPLAY|VERSION)/i.test(cleaned)
+        ) {
+          result.serial = cleaned;
+          break;
+        }
+      }
+      if (result.serial) break;
+
       const words = line.trim().split(/\s+/);
       for (let w = words.length - 1; w >= 0; w--) {
         const cleaned = normalizeAppleSerialCandidate(words[w]);

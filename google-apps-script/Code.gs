@@ -490,6 +490,33 @@ function handleUploadSingleImage(payload) {
   });
 }
 
+function trashFolderAndAllFiles(folder) {
+  if (!folder) return;
+  try {
+    // Chuyển toàn bộ file ảnh trong thư mục vào Thùng rác
+    const files = folder.getFiles();
+    while (files.hasNext()) {
+      try {
+        files.next().setTrashed(true);
+      } catch (e1) {}
+    }
+  } catch (e) {}
+
+  try {
+    // Chuyển toàn bộ thư mục con vào Thùng rác đệ quy
+    const subfolders = folder.getFolders();
+    while (subfolders.hasNext()) {
+      try {
+        trashFolderAndAllFiles(subfolders.next());
+      } catch (e2) {}
+    }
+  } catch (e) {}
+
+  try {
+    folder.setTrashed(true);
+  } catch (e3) {}
+}
+
 function handleDeleteDevice(payload) {
   const rootFolderId = payload.rootFolderId || DEFAULT_ROOT_FOLDER_ID;
   const { sheet, rootFolder } = getOrCreateSpreadsheetInDriveFolder(rootFolderId);
@@ -500,6 +527,7 @@ function handleDeleteDevice(payload) {
   let targetSerial = (payload.serial || '').toUpperCase();
 
   let foundRow = -1;
+  let imagesJsonStr = '';
   for (let r = 1; r < data.length; r++) {
     if (String(data[r][0]) === String(id)) {
       foundRow = r + 1;
@@ -511,12 +539,44 @@ function handleDeleteDevice(payload) {
       if (!targetSerial && data[r][1]) {
         targetSerial = String(data[r][1]).toUpperCase();
       }
+      // Cột 28 (index 27): imagesJson
+      if (data[r][27]) {
+        imagesJsonStr = String(data[r][27]);
+      }
       break;
     }
   }
 
-  // 1. Xóa thư mục chứa ảnh của máy trên Google Drive (đưa vào Thùng rác)
-  let folderTrashed = false;
+  // 1. Chuyển trực tiếp tất cả file ảnh vào Thùng rác bằng File ID
+  const directFiles = [];
+  if (Array.isArray(payload.images)) {
+    payload.images.forEach(function(img) {
+      if (img && img.id) directFiles.push(img.id);
+    });
+  }
+  if (imagesJsonStr) {
+    try {
+      const parsedImages = JSON.parse(imagesJsonStr);
+      if (Array.isArray(parsedImages)) {
+        parsedImages.forEach(function(img) {
+          if (img && img.id && directFiles.indexOf(img.id) === -1) {
+            directFiles.push(img.id);
+          }
+        });
+      }
+    } catch (e) {}
+  }
+
+  directFiles.forEach(function(fileId) {
+    try {
+      const f = DriveApp.getFileById(fileId);
+      if (f && !f.isTrashed()) {
+        f.setTrashed(true);
+      }
+    } catch (e) {}
+  });
+
+  // 2. Chuyển thư mục chứa máy và mọi file con vào Thùng rác
   if (
     targetDriveFolderId &&
     targetDriveFolderId !== rootFolderId &&
@@ -525,40 +585,39 @@ function handleDeleteDevice(payload) {
     try {
       const folder = DriveApp.getFolderById(targetDriveFolderId);
       if (folder) {
-        folder.setTrashed(true);
-        folderTrashed = true;
+        trashFolderAndAllFiles(folder);
       }
     } catch (e) {}
   }
 
-  // Nếu chưa xóa được qua ID, quét tìm thư mục theo Serial trong DinhPhongData
-  if (!folderTrashed && targetSerial) {
+  // 3. Quét đệ quy trong DinhPhongData tìm bất kỳ thư mục con nào khớp Serial máy
+  if (targetSerial) {
     try {
-      function searchAndTrash(parent) {
+      function searchAndTrashBySerial(parent) {
         const sub = parent.getFolders();
         while (sub.hasNext()) {
           const f = sub.next();
           if (!f.isTrashed()) {
-            if (f.getName().toUpperCase().indexOf(targetSerial) === 0) {
-              f.setTrashed(true);
-              return true;
+            const fName = f.getName().toUpperCase();
+            if (fName.indexOf(targetSerial) !== -1) {
+              trashFolderAndAllFiles(f);
+            } else {
+              searchAndTrashBySerial(f);
             }
-            if (searchAndTrash(f)) return true;
           }
         }
-        return false;
       }
-      searchAndTrash(rootFolder);
+      searchAndTrashBySerial(rootFolder);
     } catch (e) {}
   }
 
-  // 2. Xóa hàng khỏi Google Sheet
+  // 4. Xóa hàng khỏi Google Sheet
   if (foundRow > 0) {
     sheet.deleteRow(foundRow);
     return jsonResponse({ ok: true, deletedDriveFolder: true });
   }
 
-  return jsonResponse({ ok: true, note: 'Đã xử lý xóa thư mục' });
+  return jsonResponse({ ok: true, note: 'Đã dọn dẹp ảnh và thư mục' });
 }
 
 function handleUpdateStatus(payload) {

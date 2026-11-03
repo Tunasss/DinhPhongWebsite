@@ -643,6 +643,7 @@ export async function removeDeviceById(
         id,
         driveFolderId: deviceToDelete?.driveFolderId,
         serial: deviceToDelete?.serial,
+        images: deviceToDelete?.images,
         rootFolderId: normalizeDriveFolderId(settings.driveRootFolderId),
       });
     } catch (err) {

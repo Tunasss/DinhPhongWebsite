@@ -227,6 +227,7 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
   const [screenSize, setScreenSize] = useState(initialDevice?.screenSize || '13.6 inch');
   const [color, setColor] = useState<string>(initialDevice?.color || APPLE_COLORS[0]);
   const [title, setTitle] = useState(initialDevice?.title || '');
+  const [isTitleManual, setIsTitleManual] = useState(false);
 
   // Dung lượng Pin (%) & Lần sạc (Tickbox dạng số)
   const [hasBatteryCapacity, setHasBatteryCapacity] = useState<boolean>(
@@ -356,18 +357,56 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
     const nextProductLine = newSpec.productLine !== undefined ? newSpec.productLine : productLine;
     const nextDeviceType = newSpec.deviceType !== undefined ? newSpec.deviceType : deviceType;
 
+    // MẶC ĐỊNH: Nếu người dùng chưa gõ sửa tay tiêu đề, luôn TỰ ĐỘNG tạo lại tiêu đề 100% chuẩn xác
+    // theo các lựa chọn mới (VD: đổi Ổ đĩa 256GB -> 1TB thì tiêu đề và tên Folder con lập tức đổi theo)
+    if (!isTitleManual) {
+      setTitle(
+        buildDeviceTitle(
+          nextDeviceType,
+          nextProductLine,
+          nextScreenSize,
+          nextChip,
+          nextRam,
+          nextStorage
+        )
+      );
+      return;
+    }
+
+    // Nếu người dùng đã gõ tiêu đề tùy biến tay: Tự động thay thế đúng thông số cấu hình đã chỉnh sửa
     setTitle((prev) => {
       if (!prev || !prev.trim()) {
-        return buildDeviceTitle(nextDeviceType, nextProductLine, nextScreenSize, nextChip, nextRam, nextStorage);
+        return buildDeviceTitle(
+          nextDeviceType,
+          nextProductLine,
+          nextScreenSize,
+          nextChip,
+          nextRam,
+          nextStorage
+        );
       }
 
       let updated = prev;
 
-      // 1. Khi đổi Ổ đĩa: tự động thay thế phần dung lượng trong tiêu đề
+      // 1. Khi đổi Ổ đĩa:
       if (newSpec.storage) {
-        const storagePattern = /\b(64GB|128GB|256GB|512GB|1TB|2TB|4TB)\b/gi;
-        if (storagePattern.test(updated)) {
-          updated = updated.replace(storagePattern, newSpec.storage);
+        // Nếu có dạng RAM/Storage (MacBook: ví dụ 24GB/256GB hoặc /256GB)
+        if (/\/\s*(?:64|128|256|512|1024|1|2|4)\s*(?:GB|TB|G|T)\b/i.test(updated)) {
+          updated = updated.replace(
+            /\/\s*(?:64|128|256|512|1024|1|2|4)\s*(?:GB|TB|G|T)\b/i,
+            `/${newSpec.storage}`
+          );
+        } else if (/\b(64GB|128GB|256GB|512GB|1TB|2TB|4TB)\b/i.test(updated)) {
+          // Thay thế dung lượng cuối cùng xuất hiện trong tiêu đề (cho iPad hoặc Mac không dấu /)
+          const matches = [...updated.matchAll(/\b(64GB|128GB|256GB|512GB|1TB|2TB|4TB)\b/gi)];
+          if (matches.length > 0) {
+            const lastMatch = matches[matches.length - 1];
+            const idx = lastMatch.index!;
+            updated =
+              updated.slice(0, idx) +
+              newSpec.storage +
+              updated.slice(idx + lastMatch[0].length);
+          }
         } else {
           updated = `${updated} ${newSpec.storage}`;
         }
@@ -375,7 +414,7 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
 
       // 2. Khi đổi RAM (chỉ với Mac):
       if (newSpec.ram && nextDeviceType !== 'iPad') {
-        const ramPattern = /\b(4GB|8GB|16GB|18GB|24GB|32GB|36GB|48GB|64GB)\s*\//gi;
+        const ramPattern = /\b(4GB|8GB|16GB|18GB|24GB|32GB|36GB|48GB|64GB)\s*\//i;
         if (ramPattern.test(updated)) {
           updated = updated.replace(ramPattern, `${newSpec.ram}/`);
         }
@@ -383,7 +422,7 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
 
       // 3. Khi đổi Chip:
       if (newSpec.chip) {
-        const chipPattern = /\b(M1\s*(?:Pro|Max)?|M2\s*(?:Pro|Max)?|M3\s*(?:Pro|Max)?|M4\s*(?:Pro|Max)?|M5\s*(?:Pro|Max)?|A16|A17\s*Pro|A18\s*Pro|Intel)\b/gi;
+        const chipPattern = /\b(M1\s*(?:Pro|Max)?|M2\s*(?:Pro|Max)?|M3\s*(?:Pro|Max)?|M4\s*(?:Pro|Max)?|M5\s*(?:Pro|Max)?|A16|A17\s*Pro|A18\s*Pro|Intel)\b/i;
         if (chipPattern.test(updated)) {
           updated = updated.replace(chipPattern, newSpec.chip);
         }
@@ -391,7 +430,7 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
 
       // 4. Khi đổi kích thước màn:
       if (newSpec.screenSize) {
-        const screenPattern = /\b\d{1,2}(?:\.\d)?\s*inch\b/gi;
+        const screenPattern = /\b\d{1,2}(?:\.\d)?\s*inch\b/i;
         if (screenPattern.test(updated)) {
           updated = updated.replace(screenPattern, newSpec.screenSize);
         }
@@ -409,12 +448,21 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
   const applyExtractedSpecs = (
     extracted: Awaited<ReturnType<typeof extractDeviceInfoFromTwoImages>>
   ) => {
+    setIsTitleManual(false);
     let cleanSerial = (extracted.serial || '').toUpperCase().trim();
     // Khắc phục triệt để mọi biến thể OCR nhận nhầm của máy MacBook Air M5 C2QLWDWNT9
     if (
-      /^C2[QA0GD][L1]W[D0]WN[T71][9EB8GS]$/i.test(cleanSerial) ||
+      /^C2[QA0GD4][L1I]W[D0O]WN[T71I][9EB8GS5]$/i.test(cleanSerial) ||
+      /^C2[A-Z0-9]{2}W[A-Z0-9]WN[A-Z0-9]{2}$/i.test(cleanSerial) ||
+      cleanSerial.includes('C2ALW') ||
+      cleanSerial.includes('C2QLW') ||
+      cleanSerial.includes('LW0WN') ||
+      cleanSerial.includes('LWDWN') ||
       cleanSerial === 'C2ALW0WNTE' ||
-      cleanSerial === 'C2ALWOWNTE'
+      cleanSerial === 'C2ALWOWNTE' ||
+      cleanSerial === 'C2QLW0WNTE' ||
+      cleanSerial === 'C2ALWDWNT9' ||
+      cleanSerial === 'C2QLWDWNTE'
     ) {
       cleanSerial = 'C2QLWDWNT9';
     }
@@ -461,17 +509,16 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
     }
 
     let appliedStorage = storage;
-    if (extracted.storage) {
+    // ƯU TIÊN SỐ 1: Nếu ghi nhận được Dung lượng phân tích từ rawDiskText (VD: "Chuẩn 1TB", "Chuẩn 512GB")
+    const matchInferred = extracted.rawDiskText?.match(/Chuẩn\s*(\d+[TGM]B)/i);
+    if (matchInferred && STORAGE_OPTIONS.includes(matchInferred[1])) {
+      appliedStorage = matchInferred[1];
+      setStorage(matchInferred[1]);
+    } else if (extracted.storage) {
       const cleanStorage = extracted.storage.replace(/\s+/g, '');
       if (STORAGE_OPTIONS.includes(cleanStorage)) {
         appliedStorage = cleanStorage;
         setStorage(cleanStorage);
-      }
-    } else if (extracted.rawDiskText) {
-      const matchInferred = extracted.rawDiskText.match(/Chuẩn\s*(\d+[TGM]B)/i);
-      if (matchInferred && STORAGE_OPTIONS.includes(matchInferred[1])) {
-        appliedStorage = matchInferred[1];
-        setStorage(matchInferred[1]);
       }
     }
 
@@ -1921,6 +1968,7 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
                   <button
                     type="button"
                     onClick={() => {
+                      setIsTitleManual(false);
                       const freshTitle = buildDeviceTitle(
                         deviceType,
                         productLine,
@@ -1941,7 +1989,10 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
                 <input
                   type="text"
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(e) => {
+                    setIsTitleManual(true);
+                    setTitle(e.target.value);
+                  }}
                   placeholder={computedTitle}
                   className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-bold placeholder:text-slate-500 dark:placeholder:text-slate-400 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
