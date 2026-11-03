@@ -197,8 +197,22 @@ function doGet(e) {
       if (!row[0]) continue;
       const obj = {};
       headers.forEach((h, idx) => {
-        obj[h] = row[idx];
+        let val = row[idx];
+        if (val instanceof Date) {
+          if (h === 'warrantyExpiryDate') {
+            val = Utilities.formatDate(val, 'Asia/Ho_Chi_Minh', 'yyyy-MM-dd');
+          } else {
+            val = val.toISOString();
+          }
+        }
+        obj[h] = val;
       });
+      if (obj.warrantyExpiryDate && typeof obj.warrantyExpiryDate === 'string' && obj.warrantyExpiryDate.includes('T')) {
+        const d = new Date(obj.warrantyExpiryDate);
+        if (!isNaN(d.getTime())) {
+          obj.warrantyExpiryDate = Utilities.formatDate(d, 'Asia/Ho_Chi_Minh', 'yyyy-MM-dd');
+        }
+      }
       try {
         obj.images = obj.imagesJson ? JSON.parse(obj.imagesJson) : [];
       } catch (err) {
@@ -378,7 +392,7 @@ function handleSaveDevice(payload) {
     !!device.hasBatteryCycle,
     device.batteryCycleCount !== undefined ? Number(device.batteryCycleCount) : '',
     !!device.hasWarranty,
-    device.hasWarranty ? (device.warrantyExpiryDate || '') : '',
+    device.hasWarranty ? (device.warrantyExpiryDate ? String(device.warrantyExpiryDate).slice(0, 10) : '') : '',
     device.conditionNote || '',
     Number(device.importPrice) || 0,
     Number(device.salePrice) || 0,

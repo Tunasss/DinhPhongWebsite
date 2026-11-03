@@ -41,6 +41,7 @@ import {
 import {
   formatBatterySummary,
   getDriveFolderLink,
+  normalizeDateToYMD,
 } from '../services/storageService';
 import { StaffSelect } from './StaffSelect';
 
@@ -175,8 +176,6 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
   onSave,
   onNotify,
 }) => {
-  if (!isOpen) return null;
-
   const isEditing = !!initialDevice;
 
   // Bước 0: Chọn MacBook hay iPad trước khi tải ảnh; Bước 1: Tải 2 ảnh thông tin; Bước 2: Cấu hình, Giá & Bộ ảnh
@@ -251,8 +250,8 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
   const [hasWarranty, setHasWarranty] = useState<boolean>(
     initialDevice ? initialDevice.hasWarranty : false
   );
-  const [warrantyExpiryDate, setWarrantyExpiryDate] = useState<string>(
-    initialDevice?.warrantyExpiryDate || ''
+  const [warrantyExpiryDate, setWarrantyExpiryDate] = useState<string>(() =>
+    normalizeDateToYMD(initialDevice?.warrantyExpiryDate)
   );
 
   // Ngoại hình, Giá tiền (CÓ DẤU PHẨY ,) & Nhân sự
@@ -395,7 +394,7 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
       if (!extracted.hasWarranty) {
         setWarrantyExpiryDate('');
       } else if (extracted.warrantyExpiryDate) {
-        setWarrantyExpiryDate(extracted.warrantyExpiryDate);
+        setWarrantyExpiryDate(normalizeDateToYMD(extracted.warrantyExpiryDate));
       }
     }
     setAiStatusNote(
@@ -632,7 +631,7 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
           batteryCycleCount: cycNum,
         }),
         hasWarranty,
-        warrantyExpiryDate: hasWarranty ? warrantyExpiryDate : '',
+        warrantyExpiryDate: hasWarranty ? normalizeDateToYMD(warrantyExpiryDate) : '',
         conditionNote: conditionNote.trim(),
         importPrice: parsePriceFromFormatted(importPrice),
         salePrice: parsePriceFromFormatted(salePrice),
@@ -660,6 +659,8 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
   const parsedImportNum = parsePriceFromFormatted(importPrice);
   const parsedSaleNum = parsePriceFromFormatted(salePrice);
   const previewProfit = parsedSaleNum - parsedImportNum;
+
+  if (!isOpen) return null;
 
   return (
     <div
@@ -1775,7 +1776,6 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
                     </label>
                     <input
                       type="date"
-                      required={hasWarranty}
                       value={warrantyExpiryDate}
                       onChange={(e) => setWarrantyExpiryDate(e.target.value)}
                       className="w-full px-3 py-1.5 rounded-xl border border-blue-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs sm:text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"

@@ -186,14 +186,53 @@ export function formatBatterySummary(device: Partial<AppleDevice>): string {
   return device.batteryHealth || '';
 }
 
+export function normalizeDateToYMD(val: unknown): string {
+  if (!val) return '';
+  if (val instanceof Date) {
+    if (isNaN(val.getTime())) return '';
+    const vnStr = val.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+    if (/^\d{4}-\d{2}-\d{2}$/.test(vnStr)) return vnStr;
+    const y = val.getFullYear();
+    const m = String(val.getMonth() + 1).padStart(2, '0');
+    const d = String(val.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  const str = String(val).trim();
+  if (!str) return '';
+
+  // Đã là định dạng chuẩn YYYY-MM-DD
+  const ymd = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (ymd) return str;
+
+  // DD/MM/YYYY hoặc DD-MM-YYYY
+  const dmy = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (dmy) {
+    return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+  }
+
+  // Chuỗi ISO timestamp có timezone (ví dụ: "2027-04-15T17:00:00.000Z" từ Google Sheet)
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    const vnStr = parsed.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+    if (/^\d{4}-\d{2}-\d{2}$/.test(vnStr)) return vnStr;
+    const y = parsed.getFullYear();
+    const m = String(parsed.getMonth() + 1).padStart(2, '0');
+    const d = String(parsed.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  return '';
+}
+
 export function formatWarrantySummary(device: Partial<AppleDevice>): string {
   if (!device.hasWarranty) return 'Hết bảo hành';
-  if (device.warrantyExpiryDate) {
-    const m = device.warrantyExpiryDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (m) {
-      return `Còn BH đến ${m[3]}/${m[2]}/${m[1]}`;
+  const ymd = normalizeDateToYMD(device.warrantyExpiryDate);
+  if (ymd) {
+    const parts = ymd.split('-');
+    if (parts.length === 3) {
+      return `Còn BH đến ${parts[2]}/${parts[1]}/${parts[0]}`;
     }
-    return `Còn BH đến ${device.warrantyExpiryDate}`;
+    return `Còn BH đến ${ymd}`;
   }
   return 'Còn bảo hành';
 }
@@ -277,8 +316,8 @@ export function parseDevicesFromSheetCsv(csvText: string): AppleDevice[] {
       hasBatteryCycle: hasCycle,
       batteryCycleCount: cycle,
       batteryHealth,
-      hasWarranty: obj.hasWarranty === 'TRUE' || obj.hasWarranty === 'true',
-      warrantyExpiryDate: obj.warrantyExpiryDate || '',
+      hasWarranty: obj.hasWarranty === 'TRUE' || obj.hasWarranty === 'true' || obj.hasWarranty === 'Có',
+      warrantyExpiryDate: normalizeDateToYMD(obj.warrantyExpiryDate),
       conditionNote: obj.conditionNote || '',
       importPrice: Number(obj.importPrice) || 0,
       salePrice: Number(obj.salePrice) || 0,
@@ -333,8 +372,13 @@ export async function fetchAllDevices(settings: AppSettings): Promise<{
       const url = `${settings.gasWebAppUrl.trim()}?rootFolderId=${encodeURIComponent(rootId)}`;
       const data = await callGoogleAppsScript(url, 'GET');
       if (data && data.ok && Array.isArray(data.devices) && data.devices.length > 0) {
-        saveLocalDevices(data.devices);
-        return { devices: data.devices, fromCloud: true, sheetUrl: data.sheetUrl };
+        const normalizedDevices = (data.devices as AppleDevice[]).map((d) => ({
+          ...d,
+          hasWarranty: !!d.hasWarranty,
+          warrantyExpiryDate: d.hasWarranty ? normalizeDateToYMD(d.warrantyExpiryDate) : '',
+        }));
+        saveLocalDevices(normalizedDevices);
+        return { devices: normalizedDevices, fromCloud: true, sheetUrl: data.sheetUrl };
       }
     } catch (err) {
       console.warn('Google Apps Script proxy không phản hồi, tự động đọc trực tiếp từ Google Sheet:', err);
@@ -411,6 +455,8 @@ export async function upsertDevice(
     ...device,
     serial: cleanSerial,
     batteryHealth: formatBatterySummary(device),
+    hasWarranty: !!device.hasWarranty,
+    warrantyExpiryDate: device.hasWarranty ? normalizeDateToYMD(device.warrantyExpiryDate) : '',
     driveFolderId: device.driveFolderId || rootId,
     driveFolderUrl:
       device.driveFolderUrl ||
@@ -442,7 +488,11 @@ export async function upsertDevice(
       });
 
       if (data && data.ok && data.device) {
-        updatedDevice = data.device;
+        updatedDevice = {
+          ...data.device,
+          hasWarranty: !!data.device.hasWarranty,
+          warrantyExpiryDate: data.device.hasWarranty ? normalizeDateToYMD(data.device.warrantyExpiryDate) : '',
+        };
         syncedToCloud = true;
         sheetUrl = data.sheetUrl;
       } else {

@@ -508,17 +508,20 @@ export const App: React.FC = () => {
       />
 
       {/* Hộp thoại Nhập / Sửa máy (Bước 0: 3 lựa chọn MacBook / iPad / Phụ kiện) */}
-      <AddEditDeviceModal
-        isOpen={isAddEditOpen}
-        initialDevice={editingDevice}
-        settings={settings}
-        onClose={() => {
-          setIsAddEditOpen(false);
-          setEditingDevice(null);
-        }}
-        onSave={handleSaveDevice}
-        onNotify={showToast}
-      />
+      {isAddEditOpen && (
+        <AddEditDeviceModal
+          key={editingDevice ? `edit-${editingDevice.id}` : 'new-device'}
+          isOpen={isAddEditOpen}
+          initialDevice={editingDevice}
+          settings={settings}
+          onClose={() => {
+            setIsAddEditOpen(false);
+            setEditingDevice(null);
+          }}
+          onSave={handleSaveDevice}
+          onNotify={showToast}
+        />
+      )}
 
       {/* Hộp thoại Cấu hình Google Drive, Sheets & Gemini AI */}
       <GoogleSetupModal
