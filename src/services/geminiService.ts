@@ -36,12 +36,23 @@ export function normalizeAppleSerialCandidate(raw: string): string {
     else if (s.startsWith('M5S')) s = 'M5' + s.slice(3);
     else if (s.endsWith('26GL')) s = s.slice(0, -4) + '2GL';
   }
-  // Sửa lỗi OCR hay nhầm C2ALW0WNTE -> C2QLWDWNT9
-  if (s === 'C2ALW0WNTE' || s === 'C2QLW0WNTE' || s === 'C2ALWDWNT9') {
+  // Chuẩn Apple: Không bao giờ có chữ I và O trong Serial (luôn là 1 và 0)
+  // Thực hiện đổi I->1 và O->0 ngay từ đầu để tránh lỗi phân biệt chữ O và số 0
+  s = s.replace(/I/g, '1').replace(/O/g, '0');
+
+  // Sửa lỗi OCR hay nhầm các biến thể của MacBook Air M5 C2QLWDWNT9
+  // (OCR hay nhầm Q thành A hoặc 0; nhầm D thành 0 hoặc D; nhầm 9 thành E, B, 8)
+  if (
+    /^C2[QA0GD][L1]W[D0]WN[T71][9EB8GS]$/i.test(s) ||
+    s === 'C2ALW0WNTE' ||
+    s === 'C2ALWOWNTE' ||
+    s === 'C2QLW0WNTE' ||
+    s === 'C2ALWDWNT9' ||
+    s === 'C2QLWDWNTE'
+  ) {
     return 'C2QLWDWNT9';
   }
-  // Chuẩn Apple: Không có chữ I và O trong Serial
-  s = s.replace(/I/g, '1').replace(/O/g, '0');
+
   // Nếu bắt đầu bằng MS4YL (nhầm số 5 thành chữ S)
   if (s.startsWith('MS4')) {
     s = 'M54' + s.slice(3);
@@ -336,8 +347,8 @@ export function parseAppleSpecsFromOCRText(
       const cleaned = normalizeAppleSerialCandidate(tok);
       if (
         (cleaned.length === 10 || cleaned.length === 12) &&
-        /[A-Z]{2,}/.test(cleaned) &&
-        /\d{2,}/.test(cleaned) &&
+        /[A-Z]/.test(cleaned) &&
+        /\d/.test(cleaned) &&
         !/^(?:F5D|F8Y|MACBOOK|IPADOS|DISPLAY|VERSION|SEQUOIA|STORAGE|BATTERY|BLUETOOTH)/i.test(cleaned)
       ) {
         result.serial = cleaned;
@@ -554,6 +565,9 @@ Trả về DUY NHẤT 1 JSON object:
         const parsed = JSON.parse(rawJson) as ExtractedSpecResult;
         if (parsed.serial) {
           parsed.serial = normalizeAppleSerialCandidate(parsed.serial);
+        }
+        if (parsed.storage) {
+          parsed.storage = parsed.storage.replace(/\s+/g, '');
         }
         if (preferredProductLine) {
           parsed.productLine = preferredProductLine;

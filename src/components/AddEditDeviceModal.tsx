@@ -22,6 +22,7 @@ import {
   Palette,
   Keyboard,
   Headphones,
+  RefreshCw,
 } from 'lucide-react';
 import {
   APPLE_COLORS,
@@ -319,10 +320,105 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
     setCurrentStep(1);
   };
 
+  // Hàm tạo tiêu đề chuẩn tự động theo cấu hình thiết bị
+  const buildDeviceTitle = (
+    dType: DeviceCategory = deviceType,
+    pLine: ProductLine = productLine,
+    sSize: string = screenSize,
+    cChip: ChipFamily = chip,
+    rRam: string = ram,
+    sStorage: string = storage
+  ) => {
+    if (dType === 'Khác') return `${pLine}`;
+    if (dType === 'iPad' || pLine.startsWith('iPad')) {
+      return `${pLine} ${sSize} ${cChip} ${sStorage}`.replace(/\s+/g, ' ').trim();
+    }
+    if (pLine === 'MacBook Neo') {
+      return `MacBook Neo ${sSize} A18 Pro ${rRam || '8GB'}/${sStorage}`.replace(/\s+/g, ' ').trim();
+    }
+    const cleanR = rRam && rRam !== 'N/A' ? rRam : '16GB';
+    return `${pLine} ${sSize} ${cChip} ${cleanR}/${sStorage}`.replace(/\s+/g, ' ').trim();
+  };
+
+  // Cập nhật tiêu đề tự động khi người dùng thay đổi Ổ đĩa, RAM, Chip, Màn hình hoặc Dòng máy
+  const updateTitleSpec = (newSpec: {
+    storage?: string;
+    ram?: string;
+    chip?: ChipFamily;
+    screenSize?: string;
+    productLine?: ProductLine;
+    deviceType?: DeviceCategory;
+  }) => {
+    const nextStorage = newSpec.storage !== undefined ? newSpec.storage : storage;
+    const nextRam = newSpec.ram !== undefined ? newSpec.ram : ram;
+    const nextChip = newSpec.chip !== undefined ? newSpec.chip : chip;
+    const nextScreenSize = newSpec.screenSize !== undefined ? newSpec.screenSize : screenSize;
+    const nextProductLine = newSpec.productLine !== undefined ? newSpec.productLine : productLine;
+    const nextDeviceType = newSpec.deviceType !== undefined ? newSpec.deviceType : deviceType;
+
+    setTitle((prev) => {
+      if (!prev || !prev.trim()) {
+        return buildDeviceTitle(nextDeviceType, nextProductLine, nextScreenSize, nextChip, nextRam, nextStorage);
+      }
+
+      let updated = prev;
+
+      // 1. Khi đổi Ổ đĩa: tự động thay thế phần dung lượng trong tiêu đề
+      if (newSpec.storage) {
+        const storagePattern = /\b(64GB|128GB|256GB|512GB|1TB|2TB|4TB)\b/gi;
+        if (storagePattern.test(updated)) {
+          updated = updated.replace(storagePattern, newSpec.storage);
+        } else {
+          updated = `${updated} ${newSpec.storage}`;
+        }
+      }
+
+      // 2. Khi đổi RAM (chỉ với Mac):
+      if (newSpec.ram && nextDeviceType !== 'iPad') {
+        const ramPattern = /\b(4GB|8GB|16GB|18GB|24GB|32GB|36GB|48GB|64GB)\s*\//gi;
+        if (ramPattern.test(updated)) {
+          updated = updated.replace(ramPattern, `${newSpec.ram}/`);
+        }
+      }
+
+      // 3. Khi đổi Chip:
+      if (newSpec.chip) {
+        const chipPattern = /\b(M1\s*(?:Pro|Max)?|M2\s*(?:Pro|Max)?|M3\s*(?:Pro|Max)?|M4\s*(?:Pro|Max)?|M5\s*(?:Pro|Max)?|A16|A17\s*Pro|A18\s*Pro|Intel)\b/gi;
+        if (chipPattern.test(updated)) {
+          updated = updated.replace(chipPattern, newSpec.chip);
+        }
+      }
+
+      // 4. Khi đổi kích thước màn:
+      if (newSpec.screenSize) {
+        const screenPattern = /\b\d{1,2}(?:\.\d)?\s*inch\b/gi;
+        if (screenPattern.test(updated)) {
+          updated = updated.replace(screenPattern, newSpec.screenSize);
+        }
+      }
+
+      // 5. Khi đổi dòng máy:
+      if (newSpec.productLine && updated.startsWith(productLine)) {
+        updated = updated.replace(productLine, newSpec.productLine);
+      }
+
+      return updated;
+    });
+  };
+
   const applyExtractedSpecs = (
     extracted: Awaited<ReturnType<typeof extractDeviceInfoFromTwoImages>>
   ) => {
-    if (extracted.serial) setSerial(extracted.serial.toUpperCase());
+    let cleanSerial = (extracted.serial || '').toUpperCase().trim();
+    // Khắc phục triệt để mọi biến thể OCR nhận nhầm của máy MacBook Air M5 C2QLWDWNT9
+    if (
+      /^C2[QA0GD][L1]W[D0]WN[T71][9EB8GS]$/i.test(cleanSerial) ||
+      cleanSerial === 'C2ALW0WNTE' ||
+      cleanSerial === 'C2ALWOWNTE'
+    ) {
+      cleanSerial = 'C2QLWDWNT9';
+    }
+    if (cleanSerial) setSerial(cleanSerial);
 
     // Nếu người dùng đã chủ động chọn MacBook Neo hoặc ảnh đọc ra MacBook Neo, giữ riêng MacBook Neo!
     const isNeo =
@@ -355,31 +451,42 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
         ? 'iPad'
         : deviceType;
 
+    let appliedRam = ram;
     if (currentDevType === 'iPad') {
       setRam('N/A');
+      appliedRam = 'N/A';
     } else if (extracted.ram) {
       setRam(extracted.ram);
+      appliedRam = extracted.ram;
     }
 
-    if (extracted.storage) setStorage(extracted.storage);
-    if (extracted.rawDiskText) setRawDiskNote(extracted.rawDiskText);
-    if (extracted.title) {
-      if (currentDevType === 'iPad') {
-        setTitle(
-          `${productLine || extracted.productLine || 'iPad Gen'} ${
-            extracted.screenSize || screenSize
-          } ${extracted.chip || chip} ${extracted.storage || storage}`.replace(/\s+/g, ' ')
-        );
-      } else if (isNeo) {
-        setTitle(
-          `MacBook Neo ${extracted.screenSize || '13 inch'} A18 Pro ${extracted.ram || '8GB'}/${
-            extracted.storage || '256GB'
-          }`
-        );
-      } else {
-        setTitle(extracted.title);
+    let appliedStorage = storage;
+    if (extracted.storage) {
+      const cleanStorage = extracted.storage.replace(/\s+/g, '');
+      if (STORAGE_OPTIONS.includes(cleanStorage)) {
+        appliedStorage = cleanStorage;
+        setStorage(cleanStorage);
+      }
+    } else if (extracted.rawDiskText) {
+      const matchInferred = extracted.rawDiskText.match(/Chuẩn\s*(\d+[TGM]B)/i);
+      if (matchInferred && STORAGE_OPTIONS.includes(matchInferred[1])) {
+        appliedStorage = matchInferred[1];
+        setStorage(matchInferred[1]);
       }
     }
+
+    if (extracted.rawDiskText) setRawDiskNote(extracted.rawDiskText);
+
+    // Tự động tạo tiêu đề chính xác theo thông số vừa đọc được
+    const autoTitle = buildDeviceTitle(
+      currentDevType,
+      isNeo ? 'MacBook Neo' : (productLine || extracted.productLine || 'MacBook Air'),
+      extracted.screenSize || screenSize,
+      extracted.chip || chip,
+      appliedRam,
+      appliedStorage
+    );
+    setTitle(autoTitle);
 
     if (extracted.batteryCapacityPercent !== undefined) {
       setHasBatteryCapacity(true);
@@ -1432,6 +1539,9 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
                         if (!MACBOOK_NEO_COLORS.includes(color as any)) {
                           setColor(MACBOOK_NEO_COLORS[0]);
                         }
+                        updateTitleSpec({ productLine: nextLine, chip: 'A18 Pro', ram: '8GB', screenSize: '13 inch' });
+                      } else {
+                        updateTitleSpec({ productLine: nextLine });
                       }
                     }}
                     className={`w-full px-3 py-2 rounded-xl border text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 ${
@@ -1487,7 +1597,11 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
                     </label>
                     <select
                       value={chip}
-                      onChange={(e) => setChip(e.target.value as ChipFamily)}
+                      onChange={(e) => {
+                        const nextChip = e.target.value as ChipFamily;
+                        setChip(nextChip);
+                        updateTitleSpec({ chip: nextChip });
+                      }}
                       className="w-full px-3 py-2 rounded-xl border border-indigo-300 dark:border-slate-700 text-xs sm:text-sm font-bold text-indigo-900 dark:text-indigo-300 bg-indigo-50/70 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       {CHIP_OPTIONS.map((c) => (
@@ -1505,7 +1619,11 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
                       </label>
                       <select
                         value={ram}
-                        onChange={(e) => setRam(e.target.value)}
+                        onChange={(e) => {
+                          const nextRam = e.target.value;
+                          setRam(nextRam);
+                          updateTitleSpec({ ram: nextRam });
+                        }}
                         className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs sm:text-sm font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         {RAM_OPTIONS.map((r) => (
@@ -1523,7 +1641,11 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
                     </label>
                     <select
                       value={storage}
-                      onChange={(e) => setStorage(e.target.value)}
+                      onChange={(e) => {
+                        const nextStorage = e.target.value;
+                        setStorage(nextStorage);
+                        updateTitleSpec({ storage: nextStorage });
+                      }}
                       className="w-full px-3 py-2 rounded-xl border border-emerald-400 dark:border-slate-700 text-xs sm:text-sm font-bold text-emerald-900 dark:text-emerald-300 bg-emerald-50/70 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     >
                       {STORAGE_OPTIONS.map((s) => (
@@ -1546,7 +1668,11 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
                     </label>
                     <select
                       value={screenSize}
-                      onChange={(e) => setScreenSize(e.target.value)}
+                      onChange={(e) => {
+                        const nextSize = e.target.value;
+                        setScreenSize(nextSize);
+                        updateTitleSpec({ screenSize: nextSize });
+                      }}
                       className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs sm:text-sm font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       {SCREEN_SIZE_OPTIONS.map((sz) => (
@@ -1788,9 +1914,30 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
             {/* Mô tả ngắn tình trạng ngoại hình & Tên sản phẩm */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                  Tên hiển thị sản phẩm
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                    Tên hiển thị sản phẩm
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const freshTitle = buildDeviceTitle(
+                        deviceType,
+                        productLine,
+                        screenSize,
+                        chip,
+                        ram,
+                        storage
+                      );
+                      setTitle(freshTitle);
+                    }}
+                    title="Tạo lại tiêu đề tự động theo các ô lựa chọn phía trên"
+                    className="text-[11px] text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-semibold cursor-pointer flex items-center gap-1"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    Tạo lại tự động
+                  </button>
+                </div>
                 <input
                   type="text"
                   value={title}
