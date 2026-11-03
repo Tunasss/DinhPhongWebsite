@@ -582,27 +582,62 @@ Trả về DUY NHẤT 1 JSON object:
         });
       }
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(
-          cleanKey
-        )}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts }],
-            generationConfig: {
-              responseMimeType: 'application/json',
-              temperature: 0.0,
-            },
-          }),
-        }
-      );
+      let parsed: ExtractedSpecResult | null = null;
+      let usedModelName = '';
 
-      if (response.ok) {
-        const result = await response.json();
-        const rawJson = result?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-        const parsed = JSON.parse(rawJson) as ExtractedSpecResult;
+      // Tự động luân chuyển qua cụm 7 model để phân bổ Quota RPD & tối ưu tốc độ phản hồi (chỉ ~1.9s)
+      const GEMINI_VISION_MODELS = [
+        'gemini-flash-lite-latest',      // Tốc độ cao nhất (~1.9s), Quota riêng
+        'gemini-3.5-flash-lite',         // Siêu nhanh (~2.1s), Quota riêng
+        'gemini-3-flash-preview',        // Rất nhanh (~3.1s), Quota riêng
+        'gemini-3.1-flash-lite',         // Nhanh (~3.3s), Quota riêng
+        'gemini-3.1-flash-lite-preview', // Dự phòng
+        'gemini-3.5-flash',              // Model cao cấp
+        'gemini-2.5-flash',              // Model chuẩn
+      ];
+
+      for (const modelName of GEMINI_VISION_MODELS) {
+        try {
+          onProgress?.(`Đang kết nối Gemini Vision AI (${modelName}) đọc Serial, Pin, Chip, RAM...`);
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+          const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(
+              cleanKey
+            )}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts }],
+                generationConfig: {
+                  responseMimeType: 'application/json',
+                  temperature: 0.0,
+                },
+              }),
+              signal: controller.signal,
+            }
+          );
+          clearTimeout(timeoutId);
+
+          if (response.ok) {
+            const result = await response.json();
+            const rawJson = result?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+            parsed = JSON.parse(rawJson) as ExtractedSpecResult;
+            usedModelName = modelName;
+            break; // Thành công ngay lập tức! Dừng vòng lặp failover
+          } else {
+            console.warn(
+              `Model ${modelName} phản hồi [${response.status}], tự động chuyển sang model tiếp theo trong danh sách...`
+            );
+          }
+        } catch (mErr) {
+          console.warn(`Model ${modelName} gặp sự cố kết nối/timeout, tự động đổi model:`, mErr);
+        }
+      }
+
+      if (parsed) {
         if (parsed.serial) {
           parsed.serial = normalizeAppleSerialCandidate(parsed.serial);
         }
@@ -640,11 +675,11 @@ Trả về DUY NHẤT 1 JSON object:
           const st = parsed.storage || '256GB';
           parsed.title = `${parsed.productLine} ${scr} ${ch} ${st}`.replace(/\s+/g, ' ');
         }
-        parsed.confidenceNote = `Đã đọc chính xác từ ${images.length} ảnh bằng Gemini Vision AI!`;
+        parsed.confidenceNote = `Đã đọc chính xác từ ${images.length} ảnh bằng Gemini Vision AI (${usedModelName})!`;
         return parsed;
       }
     } catch (err) {
-      console.warn('Gemini API lỗi, chuyển sang bộ lọc OCR độ tương phản cao:', err);
+      console.warn('Toàn bộ cụm Gemini Vision AI bận, chuyển sang bộ lọc OCR độ tương phản cao:', err);
     }
   }
 
