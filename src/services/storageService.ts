@@ -134,7 +134,9 @@ export function saveSettings(settings: AppSettings): void {
 }
 
 /**
- * Tải danh sách thiết bị từ bộ nhớ đệm trình duyệt (Client-side Cache)
+ * Tải danh sách thiết bị từ bộ nhớ đệm trình duyệt (Client-side Cache).
+ * Nếu chưa có dữ liệu trong cache, trả về mảng rỗng để App hiển thị trạng thái "Đang đồng bộ dữ liệu kho máy"
+ * thay vì flash dữ liệu cũ / mock data.
  */
 export function loadLocalDevices(): AppleDevice[] {
   try {
@@ -142,17 +144,15 @@ export function loadLocalDevices(): AppleDevice[] {
       localStorage.getItem(DEVICES_STORAGE_KEY) ||
       localStorage.getItem('dinhphong_apple_devices_v2');
     if (!raw) {
-      localStorage.setItem(DEVICES_STORAGE_KEY, JSON.stringify(INITIAL_MOCK_DEVICES));
-      return INITIAL_MOCK_DEVICES;
+      return [];
     }
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0) {
       return parsed;
     }
-    localStorage.setItem(DEVICES_STORAGE_KEY, JSON.stringify(INITIAL_MOCK_DEVICES));
-    return INITIAL_MOCK_DEVICES;
+    return [];
   } catch {
-    return INITIAL_MOCK_DEVICES;
+    return [];
   }
 }
 

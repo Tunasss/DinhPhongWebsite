@@ -8,6 +8,7 @@ import {
   FileSpreadsheet,
   Keyboard,
   ShieldAlert,
+  RefreshCw,
 } from 'lucide-react';
 import {
   AppleDevice,
@@ -61,6 +62,7 @@ export const App: React.FC = () => {
 
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
   const [devices, setDevices] = useState<AppleDevice[]>(() => loadLocalDevices());
+  const [isInitialLoading, setIsInitialLoading] = useState(() => loadLocalDevices().length === 0);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCloudConnected, setIsCloudConnected] = useState(false);
   const [cloudSheetUrl, setCloudSheetUrl] = useState<string | undefined>(undefined);
@@ -102,6 +104,7 @@ export const App: React.FC = () => {
       if (res.sheetUrl) setCloudSheetUrl(res.sheetUrl);
     } finally {
       setIsSyncing(false);
+      setIsInitialLoading(false);
     }
   };
 
@@ -423,7 +426,25 @@ export const App: React.FC = () => {
         </div>
 
         {/* Lưới thẻ sản phẩm (GSAP Stagger Reveal) */}
-        {filteredDevices.length > 0 ? (
+        {isInitialLoading || (devices.length === 0 && isSyncing) ? (
+          <div className="bg-white dark:bg-slate-900/80 rounded-3xl border border-slate-200 dark:border-slate-800 p-8 sm:p-14 text-center max-w-lg mx-auto my-8 space-y-4 shadow-sm">
+            <div className="w-16 h-16 rounded-2xl bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto shadow-inner">
+              <RefreshCw className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400" />
+            </div>
+            <div className="space-y-1.5">
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-base sm:text-lg">
+                Đang đồng bộ dữ liệu kho máy...
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                Hệ thống đang kết nối Google Sheets &amp; Google Drive để tải danh mục sản phẩm và hình ảnh mới nhất.
+              </p>
+            </div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-[11px] font-semibold text-blue-700 dark:text-blue-300">
+              <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
+              <span>Đang kết nối Cloud Google Sheet</span>
+            </div>
+          </div>
+        ) : filteredDevices.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
             {filteredDevices.map((device) => (
               <DeviceCard
