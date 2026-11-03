@@ -11,7 +11,7 @@ const DEVICES_STORAGE_KEY = 'dinhphong_apple_devices_v3';
 const SETTINGS_STORAGE_KEY = 'dinhphong_apple_settings_v4';
 
 export const USER_GAS_WEB_APP_URL =
-  'https://script.google.com/macros/s/AKfycbyv0wCg_DYePOZ5fhYu7zehoL7kcXMLjZkH91q8sK9v-p1ZHwjDl6l-srOkokXjwaDL_w/exec';
+  'https://script.google.com/macros/s/AKfycbwoHvW6gL5qrA5g2SbDC4uzXnyRZQuZuMIYOTYLRJq2xSmSvyxqrzurDYhTpjOycF8/exec';
 
 export const DEFAULT_SETTINGS: AppSettings = {
   gasWebAppUrl: USER_GAS_WEB_APP_URL,
@@ -89,10 +89,15 @@ export function loadSettings(): AppSettings {
       localStorage.getItem('dinhphong_apple_settings_v2');
     if (!raw) return DEFAULT_SETTINGS;
     const parsed = JSON.parse(raw);
+    let gasUrl = (parsed.gasWebAppUrl || USER_GAS_WEB_APP_URL).trim();
+    // Tự động nâng cấp URL nếu còn lưu URL cũ bị lỗi 403
+    if (gasUrl.includes('AKfycbyv0wCg')) {
+      gasUrl = USER_GAS_WEB_APP_URL;
+    }
     return {
       ...DEFAULT_SETTINGS,
       ...parsed,
-      gasWebAppUrl: (parsed.gasWebAppUrl || USER_GAS_WEB_APP_URL).trim(),
+      gasWebAppUrl: gasUrl,
       driveRootFolderId: normalizeDriveFolderId(
         parsed.driveRootFolderId || SHOP_DRIVE_ROOT_FOLDER_ID
       ),
