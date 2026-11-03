@@ -1,5 +1,6 @@
 import { createWorker } from 'tesseract.js';
 import type { ChipFamily, DeviceCategory, ExtractedSpecResult, ProductLine } from '../types.ts';
+import { getActiveGeminiApiKey } from './storageService.ts';
 
 export interface SpecImageInput {
   base64Data: string;
@@ -476,40 +477,59 @@ export function parseAppleSpecsFromOCRText(
  */
 export async function extractDeviceInfoFromTwoImages(
   images: SpecImageInput[],
-  apiKey: string,
+  apiKey?: string,
   onProgress?: (statusText: string) => void,
   preferredDeviceType?: DeviceCategory,
   preferredProductLine?: ProductLine
 ): Promise<ExtractedSpecResult> {
-  const cleanKey = (apiKey || '').trim();
+  const cleanKey = getActiveGeminiApiKey(apiKey);
 
-  // Nếu người dùng có cấu hình Gemini API Key -> Gọi Gemini Vision trước
+  // Ưu tiên cao nhất: Gọi Gemini Vision AI (Gemini 2.5 Flash) để nhận diện với độ chính xác tuyệt đối
   if (cleanKey && images.length > 0) {
     try {
-      onProgress?.('Đang phân tích 2 ảnh thông tin máy bằng Gemini Vision AI...');
-      const prompt = `Bạn là chuyên gia kiểm định máy MacBook & iPad. Người dùng tải lên ${images.length} ảnh chụp màn hình thông tin máy (Loại thiết bị ưu tiên: ${preferredDeviceType || 'MacBook'}, Dòng máy ưu tiên: ${preferredProductLine || 'Tự nhận diện'}).
+      onProgress?.('Đang kết nối Gemini Vision AI để đọc chuẩn xác Serial, Chip, RAM, Pin...');
+      const prompt = `Bạn là chuyên gia kiểm định máy Apple (MacBook & iPad). Người dùng tải lên ${images.length} ảnh chụp màn hình thông tin hệ thống (Loại thiết bị: ${preferredDeviceType || 'MacBook'}, Dòng máy: ${preferredProductLine || 'Tự nhận diện'}).
 
-Hãy tuân thủ NGHIÊM NGẶT:
-1. DÒNG MÁY (productLine):
-   - NẾU Dòng máy ưu tiên đã được chọn (${preferredProductLine || 'Chưa chọn'}): BẮT BUỘC giữ nguyên productLine = "${preferredProductLine}". Đặc biệt: nếu đã chọn "iPad Gen" thì BẮT BUỘC trả về "iPad Gen", TUYỆT ĐỐI KHÔNG đổi sang "iPad Air"!
-   - Nếu ảnh ghi "MacBook Neo" hoặc chip "Apple A18 Pro" hoặc màn hình "2408 x 1506": BẮT BUỘC trả về productLine = "MacBook Neo" và chip = "A18 Pro". TUYỆT ĐỐI KHÔNG phân loại MacBook Neo sang MacBook Air hay MacBook Pro!
+Hãy trích xuất thông tin kỹ thuật với ĐỘ CHÍNH XÁC TUYỆT ĐỐI theo các quy tắc sau:
+
+1. SỐ SÊ-RI MÁY (serial):
+   - ĐỌC TỪ CỬA SỔ "Giới thiệu" (About this Mac), trường "Số sê-ri".
+   - Mã Serial Apple có đúng 10 hoặc 12 ký tự (Base-34, không chứa chữ I và O).
+   - Hãy phân biệt cực kỳ cẩn thận:
+     + Chữ Q hoa (có đuôi nét nhỏ ở góc dưới như C2QLWDWNT9), phân biệt rõ với chữ A.
+     + Chữ D hoa, phân biệt rõ với số 0.
+     + Chữ N hoa, phân biệt rõ với chữ M.
+     + Số 9, phân biệt rõ với chữ E hay số 8.
+   - TUYỆT ĐỐI KHÔNG lấy "Số sê-ri" của viên Pin trong Hardware/Power (dài 17-18 ký tự như J41HNT0DBNH0000UFB).
+
+2. DÒNG MÁY (productLine):
+   - NẾU Dòng máy ưu tiên đã được chọn (${preferredProductLine || 'Chưa chọn'}): BẮT BUỘC giữ nguyên productLine = "${preferredProductLine}". Đặc biệt nếu chọn "iPad Gen" thì BẮT BUỘC trả về "iPad Gen", TUYỆT ĐỐI KHÔNG đổi sang "iPad Air"!
+   - Nếu ảnh ghi "MacBook Neo" hoặc chip "Apple A18 Pro" hoặc màn hình "2408 x 1506": BẮT BUỘC trả về productLine = "MacBook Neo" và chip = "A18 Pro".
    - Nếu ảnh ghi "iPad (A16)" hoặc "iPad (A15)" hoặc "iPad Gen": productLine = "iPad Gen".
    - Các dòng khác: "MacBook Air" | "MacBook Pro" | "iPad Pro" | "iPad Air" | "iPad Gen" | "iPad Mini".
-2. BỘ NHỚ RAM:
-   - ĐẶC BIỆT: ĐỐI VỚI IPAD, KHÔNG CẦN RAM! Trả về ram = "" (hoặc "N/A").
-   - Đối với MacBook: Đọc mục Memory / Bộ nhớ (ví dụ: "24 GB" -> "24GB", "16 GB" -> "16GB").
-3. SỐ SÊ-RI MÁY (serial): Lấy chính xác từng ký tự của "Serial number" / "Số sê-ri" ở cửa sổ About/Giới thiệu (10-12 ký tự). Hãy phóng to vùng này và phân biệt rõ ràng: chữ Q hoa (có đuôi như C2QLWDWNT9) với chữ A; chữ D hoa với số 0; số 9 với chữ E. TUYỆT ĐỐI KHÔNG lấy "Số sê-ri" của viên Pin trong Hardware/Power (dài 17-18 ký tự như J41HNT008NH0000UFB).
-4. CHIP MÁY: Nhận diện chính xác Apple Silicon: M5, M5 Pro, M5 Max, M4, M4 Pro, M4 Max, M3, M3 Pro, M3 Max, M2, M2 Pro, M2 Max, M1, M1 Pro, M1 Max, A18 Pro, A17 Pro, A16, A-Series, Intel. Nếu ảnh ghi "Apple M5" -> chip = "M5"! Nếu ảnh ghi "iPad (A16)" -> chip = "A16"!
-5. Ổ ĐĨA (storage): Nhìn vào chỗ Dung lượng / Capacity / Available (ví dụ: "128 GB" -> "128GB", "256 GB" -> "256GB", "512 GB" -> "512GB", "1 TB" -> "1TB").
-6. PIN & LẦN SẠC:
-   - Lấy "Cycle Count" / "Số lượng Chu kỳ" đưa vào batteryCycleCount (ví dụ 8 hoặc 138).
-   - Lấy "Maximum Capacity" / "Dung lượng tối đa" đưa vào batteryCapacityPercent (ví dụ 100 hoặc 98). TUYỆT ĐỐI KHÔNG lấy "State of Charge (%)" (80% hay 85%).
+
+3. BỘ NHỚ RAM (ram):
+   - ĐỐI VỚI IPAD: KHÔNG CẦN RAM! Trả về ram = "" (hoặc "N/A").
+   - Đối với MacBook: Đọc mục Memory / Bộ nhớ (ví dụ: "24 GB" -> "24GB", "16 GB" -> "16GB", "8 GB" -> "8GB").
+
+4. CHIP MÁY (chip):
+   - Nhận diện đúng Apple Silicon: M5, M5 Pro, M5 Max, M4, M4 Pro, M4 Max, M3, M3 Pro, M3 Max, M2, M2 Pro, M2 Max, M1, M1 Pro, M1 Max, A18 Pro, A17 Pro, A16, A-Series, Intel. Nếu ảnh ghi "Apple M5" -> chip = "M5"!
+
+5. PIN & SẠC:
+   - batteryCycleCount: Lấy đúng từ "Số lượng Chu kỳ" (Cycle Count) (ví dụ: 8 hoặc 138). TUYỆT ĐỐI KHÔNG nhầm với "Trạng thái sạc (%)" là 43%!
+   - batteryCapacityPercent: Lấy từ "Dung lượng tối đa" (Maximum Capacity) (ví dụ: 100 hoặc 98). TUYỆT ĐỐI KHÔNG lấy Trạng thái sạc 43% hay 80%.
+
+6. Ổ ĐĨA (storage):
+   - Đọc mục Dung lượng / Capacity / Available (ví dụ: "966 GB / 994 GB" -> "1TB", "494 GB" -> "512GB", "245 GB" -> "256GB", "128 GB" -> "128GB").
+   - Nếu trong các ảnh tải lên KHÔNG CÓ ảnh nào chụp mục Ổ đĩa, trả về storage = "256GB" và rawDiskText = "".
+
 7. BẢO HÀNH:
-   - Nếu ghi "Hết hạn: [ngày]" (như "Hết hạn: 16 tháng 4, 2027"): nghĩa là CÒN BẢO HÀNH đến ngày đó -> hasWarranty = true, warrantyExpiryDate = "2027-04-16"!
-   - Nếu ghi "Gói bảo hành đã hết hạn" hoặc "Expired" không kèm ngày tương lai: hasWarranty = false, warrantyExpiryDate = "".
+   - Nếu ghi "Hết hạn: [ngày]" (như "Hết hạn: 16 tháng 4, 2027"): hasWarranty = true, warrantyExpiryDate = "2027-04-16"!
+   - Nếu ghi "Gói bảo hành đã hết hạn" hoặc "Expired": hasWarranty = false, warrantyExpiryDate = "".
+
 8. TIÊU ĐỀ (title):
-   - Nếu là iPad: KHÔNG CÓ RAM! Định dạng: "{Dòng máy} {Kích thước màn} {Chip} {Ổ đĩa}" (ví dụ "iPad Pro 11 inch M4 256GB", "iPad Gen 10.9 inch A16 128GB").
-   - Nếu là MacBook: "{Dòng máy} {Kích thước màn} {Chip} {RAM}/{Ổ đĩa}" (ví dụ "MacBook Air 13.6 inch M5 24GB/512GB").
+   - Nếu là iPad: "{Dòng máy} {Kích thước màn} {Chip} {Ổ đĩa}" (ví dụ "iPad Pro 11 inch M4 256GB").
+   - Nếu là MacBook: "{Dòng máy} {Kích thước màn} {Chip} {RAM}/{Ổ đĩa}" (ví dụ "MacBook Air 13.6 inch M5 24GB/256GB").
 
 Trả về DUY NHẤT 1 JSON object:
 {

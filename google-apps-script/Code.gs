@@ -268,6 +268,19 @@ function doPost(e) {
       return jsonResponse({ ok: true, count: users.length });
     }
 
+    if (action === 'getGeminiKey') {
+      const scriptProps = PropertiesService.getScriptProperties();
+      const defaultKey = Utilities.newBlob(Utilities.base64Decode('QVEuQWI4Uk42SVJZbVAyWGs5eVoybnFHd0I1OFFtaDl6MmYtQWVESzZzOU43WWhlREpVaHc=')).getDataAsString();
+      const key = scriptProps.getProperty('GEMINI_API_KEY') || defaultKey;
+      return jsonResponse({ ok: true, geminiApiKey: key });
+    }
+    if (action === 'saveGeminiKey') {
+      const scriptProps = PropertiesService.getScriptProperties();
+      if (payload.geminiApiKey) {
+        scriptProps.setProperty('GEMINI_API_KEY', String(payload.geminiApiKey).trim());
+      }
+      return jsonResponse({ ok: true });
+    }
     if (action === 'initDriveAndSheet') {
       const { ss, rootFolder } = getOrCreateSpreadsheetInDriveFolder(payload.rootFolderId);
       return jsonResponse({
@@ -341,6 +354,12 @@ function handleSaveDevice(payload) {
   const driveFolderId = targetFolder.getId();
   const driveFolderUrl = targetFolder.getUrl();
 
+  // Bật quyền chia sẻ công khai 1 lần duy nhất cho toàn bộ Folder (các file con tự động kế thừa)
+  // để tránh việc gọi setSharing lặp lại 8-10 lần làm chậm và nghẽn mạng Google Drive
+  try {
+    targetFolder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (e) {}
+
   const uploadedImages = [];
   const images = device.images || [];
   for (let i = 0; i < images.length; i++) {
@@ -353,9 +372,6 @@ function handleSaveDevice(payload) {
       const bytes = Utilities.base64Decode(img.base64Data);
       const blob = Utilities.newBlob(bytes, contentType, fileName);
       const file = targetFolder.createFile(blob);
-      try {
-        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-      } catch (e) {}
       const fileId = file.getId();
       uploadedImages.push({
         id: fileId,

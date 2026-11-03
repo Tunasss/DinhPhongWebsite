@@ -160,7 +160,7 @@ async function urlToSpecImageInput(url: string, fileName: string): Promise<SpecI
   const res = await fetch(url);
   const blob = await res.blob();
   const file = new File([blob], fileName, { type: blob.type || 'image/jpeg' });
-  const compressed = await compressImageFile(file, 2200, 0.96);
+  const compressed = await compressImageFile(file, 1600, 0.84);
   return {
     base64Data: compressed.base64Data,
     mimeType: compressed.mimeType,
@@ -529,8 +529,8 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
 
     try {
       if (files.length >= 2) {
-        const c1 = await compressImageFile(files[0], 2200, 0.96);
-        const c2 = await compressImageFile(files[1], 2200, 0.96);
+        const c1 = await compressImageFile(files[0], 1600, 0.84);
+        const c2 = await compressImageFile(files[1], 1600, 0.84);
         const img1: DeviceImage = {
           id: `spec-1-${Date.now()}`,
           name: `Spec1_${files[0].name}`,
@@ -556,7 +556,7 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
         if (files.length > 2) {
           const extraPhotos: DeviceImage[] = [];
           for (let i = 2; i < files.length; i++) {
-            const compExtra = await compressImageFile(files[i], 1500, 0.85);
+            const compExtra = await compressImageFile(files[i], 1200, 0.80);
             extraPhotos.push({
               id: `ext-${Date.now()}-${i}`,
               name: files[i].name,
@@ -577,7 +577,7 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
         await runExtractFromTwoImages(img1, img2);
       } else {
         const file = files[0];
-        const comp = await compressImageFile(file, 2200, 0.96);
+        const comp = await compressImageFile(file, 1600, 0.84);
         const targetSlot: 1 | 2 = slot === 'both' ? (specImage1 ? 2 : 1) : slot;
         const newImg: DeviceImage = {
           id: `spec-${targetSlot}-${Date.now()}`,
@@ -668,7 +668,7 @@ export const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       try {
-        const compressed = await compressImageFile(file, 1400, 0.82);
+        const compressed = await compressImageFile(file, 1200, 0.80);
         added.push({
           id: `ext-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`,
           name: file.name,
