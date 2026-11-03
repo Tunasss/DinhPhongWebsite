@@ -71,7 +71,7 @@ export const App: React.FC = () => {
   const [selectedLine, setSelectedLine] = useState<CategoryFilterLine>('ALL');
   const [selectedChip, setSelectedChip] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<DeviceStatus | 'ALL'>('ALL');
-  const [selectedStaff, setSelectedStaff] = useState<string>('ALL');
+  const [selectedColor, setSelectedColor] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Trạng thái các hộp thoại (Modals)
@@ -225,15 +225,17 @@ export const App: React.FC = () => {
       // Lọc trạng thái
       if (selectedStatus !== 'ALL' && d.status !== selectedStatus) return false;
 
-      // Lọc nhân sự
-      if (selectedStaff !== 'ALL') {
-        const staffMatch = [
-          d.receiverName,
-          d.sourcerName,
-          d.sellerName,
-          d.delivererName,
-        ].some((n) => (n || '').toLowerCase() === selectedStaff.toLowerCase());
-        if (!staffMatch) return false;
+      // Lọc màu sắc máy
+      if (selectedColor !== 'ALL') {
+        const devColor = (d.color || '').trim().toLowerCase();
+        const targetColor = selectedColor.trim().toLowerCase();
+        if (
+          devColor !== targetColor &&
+          !devColor.includes(targetColor) &&
+          !targetColor.includes(devColor)
+        ) {
+          return false;
+        }
       }
 
       // Lọc từ khóa tìm kiếm
@@ -265,7 +267,7 @@ export const App: React.FC = () => {
     selectedLine,
     selectedChip,
     selectedStatus,
-    selectedStaff,
+    selectedColor,
     searchQuery,
   ]);
 
@@ -293,7 +295,7 @@ export const App: React.FC = () => {
         selectedLine,
         selectedChip,
         selectedStatus,
-        selectedStaff,
+        selectedColor,
       ],
     }
   );
@@ -302,7 +304,7 @@ export const App: React.FC = () => {
     setSelectedLine('ALL');
     setSelectedChip('ALL');
     setSelectedStatus('ALL');
-    setSelectedStaff('ALL');
+    setSelectedColor('ALL');
     setSearchQuery('');
   };
 
@@ -350,18 +352,18 @@ export const App: React.FC = () => {
         }}
       />
 
-      {/* Thanh phân loại dòng máy (MacBook / iPad / Phụ kiện & Khác), Chip, Nhân sự & Tìm kiếm */}
+      {/* Thanh phân loại dòng máy (MacBook / iPad / Phụ kiện & Khác), Chip, Màu sắc & Tìm kiếm */}
       <CategoryFilterBar
         devices={devices}
         selectedLine={selectedLine}
         selectedChip={selectedChip}
         selectedStatus={selectedStatus}
-        selectedStaff={selectedStaff}
+        selectedColor={selectedColor}
         searchQuery={searchQuery}
         onSelectLine={setSelectedLine}
         onSelectChip={setSelectedChip}
         onSelectStatus={setSelectedStatus}
-        onSelectStaff={setSelectedStaff}
+        onSelectColor={setSelectedColor}
         onSearchChange={setSearchQuery}
         onResetFilters={handleResetFilters}
       />

@@ -3,12 +3,12 @@ import {
   Search,
   Laptop,
   Cpu,
-  UserCheck,
+  Palette,
   Filter,
   X,
   CheckCircle2,
 } from 'lucide-react';
-import { AppleDevice, DeviceStatus, ProductLine } from '../types';
+import { AppleDevice, DeviceStatus, ProductLine, APPLE_COLORS } from '../types';
 
 export type CategoryFilterLine =
   | ProductLine
@@ -22,12 +22,12 @@ interface CategoryFilterBarProps {
   selectedLine: CategoryFilterLine;
   selectedChip: string;
   selectedStatus: DeviceStatus | 'ALL';
-  selectedStaff: string;
+  selectedColor: string;
   searchQuery: string;
   onSelectLine: (line: CategoryFilterLine) => void;
   onSelectChip: (chip: string) => void;
   onSelectStatus: (status: DeviceStatus | 'ALL') => void;
-  onSelectStaff: (staff: string) => void;
+  onSelectColor: (color: string) => void;
   onSearchChange: (q: string) => void;
   onResetFilters: () => void;
 }
@@ -37,31 +37,28 @@ export const CategoryFilterBar: React.FC<CategoryFilterBarProps> = ({
   selectedLine,
   selectedChip,
   selectedStatus,
-  selectedStaff,
+  selectedColor,
   searchQuery,
   onSelectLine,
   onSelectChip,
   onSelectStatus,
-  onSelectStaff,
+  onSelectColor,
   onSearchChange,
   onResetFilters,
 }) => {
-  // Lấy danh sách tên nhân sự duy nhất
-  const staffSet = new Set<string>();
+  // Lấy danh sách màu sắc thực tế trong kho và các màu Apple chuẩn
+  const colorCountMap = new Map<string, number>();
   devices.forEach((d) => {
-    [d.receiverName, d.sourcerName, d.sellerName, d.delivererName].forEach((name) => {
-      const clean = (name || '').trim();
-      if (
-        clean &&
-        clean.toLowerCase() !== 'chưa bán' &&
-        clean.toLowerCase() !== 'chưa giao' &&
-        clean.toLowerCase() !== 'đang chờ ship'
-      ) {
-        staffSet.add(clean);
-      }
-    });
+    const c = (d.color || '').trim();
+    if (c) {
+      colorCountMap.set(c, (colorCountMap.get(c) || 0) + 1);
+    }
   });
-  const staffList = Array.from(staffSet);
+
+  const availableColorsInStock = Array.from(colorCountMap.keys()).sort();
+  const allOptionColors = Array.from(
+    new Set([...availableColorsInStock, ...APPLE_COLORS])
+  );
 
   const countByLine = (lineId: CategoryFilterLine) => {
     if (lineId === 'ALL') return devices.length;
@@ -75,7 +72,7 @@ export const CategoryFilterBar: React.FC<CategoryFilterBarProps> = ({
     selectedLine !== 'ALL' ||
     selectedChip !== 'ALL' ||
     selectedStatus !== 'ALL' ||
-    selectedStaff !== 'ALL' ||
+    selectedColor !== 'ALL' ||
     searchQuery.trim() !== '';
 
   return (
@@ -204,27 +201,34 @@ export const CategoryFilterBar: React.FC<CategoryFilterBarProps> = ({
               </div>
             </div>
 
-            {/* Dropdown 4: Nhân sự phụ trách */}
+            {/* Dropdown 4: Lọc theo Màu sắc */}
             <div className="relative min-w-0">
               <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-purple-600 dark:text-purple-400">
-                <UserCheck className="w-3.5 h-3.5" />
+                <Palette className="w-3.5 h-3.5" />
               </div>
               <select
-                value={selectedStaff}
-                onChange={(e) => onSelectStaff(e.target.value)}
+                value={selectedColor}
+                onChange={(e) => onSelectColor(e.target.value)}
                 className={`w-full sm:w-auto pl-8 pr-6 py-2 rounded-xl border text-xs sm:text-sm font-bold transition cursor-pointer appearance-none truncate ${
-                  selectedStaff !== 'ALL'
+                  selectedColor !== 'ALL'
                     ? 'bg-purple-50 text-purple-800 border-purple-400 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-500'
                     : 'bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-950/70 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700'
                 }`}
-                title="Lọc theo nhân sự phụ trách"
+                title="Lọc theo màu sắc máy"
               >
-                <option value="ALL">👤 Mọi nhân sự</option>
-                {staffList.map((name) => (
-                  <option key={name} value={name} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-                    {name}
-                  </option>
-                ))}
+                <option value="ALL">🎨 Mọi màu sắc</option>
+                {allOptionColors.map((col) => {
+                  const count = colorCountMap.get(col) || 0;
+                  return (
+                    <option
+                      key={col}
+                      value={col}
+                      className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                    >
+                      {col} {count > 0 ? `(${count})` : ''}
+                    </option>
+                  );
+                })}
               </select>
               <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[10px]">
                 ▼
