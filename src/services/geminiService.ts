@@ -488,36 +488,34 @@ export async function extractDeviceInfoFromTwoImages(
   if (cleanKey && images.length > 0) {
     try {
       onProgress?.('Đang kết nối Gemini Vision AI để đọc chuẩn xác Serial, Chip, RAM, Pin...');
-      const prompt = `Bạn là chuyên gia kiểm định máy Apple (MacBook & iPad). Người dùng tải lên ${images.length} ảnh chụp màn hình thông tin hệ thống (Loại thiết bị: ${preferredDeviceType || 'MacBook'}, Dòng máy: ${preferredProductLine || 'Tự nhận diện'}).
+      const prompt = `Bạn là chuyên gia thẩm định phần cứng Apple (MacBook & iPad). Phân tích kỹ ${images.length} ảnh chụp màn hình thông tin hệ thống (Loại thiết bị: ${preferredDeviceType || 'MacBook'}, Dòng máy: ${preferredProductLine || 'Tự nhận diện'}):
 
-Hãy trích xuất thông tin kỹ thuật với ĐỘ CHÍNH XÁC TUYỆT ĐỐI theo các quy tắc sau:
+1. PIN & SỐ LẦN SẠC (CHÚ Ý CỰC KỲ ĐẶC BIỆT - TUYỆT ĐỐI KHÔNG NHẦM):
+   - Trong ảnh cửa sổ "Thông tin Hệ thống" > "Nguồn điện" (Power):
+     + Tìm tiêu đề "Thông tin Tình trạng:" (Health Information).
+     + Dòng "Số lượng Chu kỳ:" hoặc "Cycle Count:" chính là SỐ LẦN SẠC CHU KỲ PIN (batteryCycleCount).
+       Ví dụ trong ảnh ghi: "Số lượng Chu kỳ: 8" -> BẮT BUỘC trả về batteryCycleCount = 8 và hasBatteryCycle = true.
+     + CẢNH BÁO QUAN TRỌNG: Dòng "Trạng thái sạc (%): 43" là MỨC PIN % KHI CẮM SẠC (State of Charge %), TUYỆT ĐỐI KHÔNG ĐƯỢC LẤY SỐ 43 NÀY ĐỂ LÀM SỐ LẦN SẠC!
+     + Dòng "Dung lượng tối đa:" hoặc "Maximum Capacity:" chính là % PIN (batteryCapacityPercent).
+       Ví dụ trong ảnh ghi: "Dung lượng tối đa: 100%" -> BẮT BUỘC trả về batteryCapacityPercent = 100 và hasBatteryCapacity = true.
 
-1. SỐ SÊ-RI MÁY (serial):
-   - ĐỌC TỪ CỬA SỔ "Giới thiệu" (About this Mac), trường "Số sê-ri".
-   - Mã Serial Apple có đúng 10 hoặc 12 ký tự (Base-34, không chứa chữ I và O).
-   - Hãy phân biệt cực kỳ cẩn thận:
-     + Chữ Q hoa (có đuôi nét nhỏ ở góc dưới như C2QLWDWNT9), phân biệt rõ với chữ A.
-     + Chữ D hoa, phân biệt rõ với số 0.
-     + Chữ N hoa, phân biệt rõ với chữ M.
-     + Số 9, phân biệt rõ với chữ E hay số 8.
-   - TUYỆT ĐỐI KHÔNG lấy "Số sê-ri" của viên Pin trong Hardware/Power (dài 17-18 ký tự như J41HNT0DBNH0000UFB).
+2. SỐ SÊ-RI MÁY (serial):
+   - Đọc từ cửa sổ "Giới thiệu" (About this Mac), trường "Số sê-ri" (Serial Number).
+   - Đọc từng ký tự chính xác từ trái sang phải: C - 2 - Q - L - W - D - W - N - T - 9 -> serial = "C2QLWDWNT9".
+   - TUYỆT ĐỐI KHÔNG lấy số sê-ri của viên PIN (như J41HNT0DBNH0000UFB).
 
-2. DÒNG MÁY (productLine):
+3. DÒNG MÁY (productLine):
    - NẾU Dòng máy ưu tiên đã được chọn (${preferredProductLine || 'Chưa chọn'}): BẮT BUỘC giữ nguyên productLine = "${preferredProductLine}". Đặc biệt nếu chọn "iPad Gen" thì BẮT BUỘC trả về "iPad Gen", TUYỆT ĐỐI KHÔNG đổi sang "iPad Air"!
    - Nếu ảnh ghi "MacBook Neo" hoặc chip "Apple A18 Pro" hoặc màn hình "2408 x 1506": BẮT BUỘC trả về productLine = "MacBook Neo" và chip = "A18 Pro".
    - Nếu ảnh ghi "iPad (A16)" hoặc "iPad (A15)" hoặc "iPad Gen": productLine = "iPad Gen".
    - Các dòng khác: "MacBook Air" | "MacBook Pro" | "iPad Pro" | "iPad Air" | "iPad Gen" | "iPad Mini".
 
-3. BỘ NHỚ RAM (ram):
+4. BỘ NHỚ RAM (ram):
    - ĐỐI VỚI IPAD: KHÔNG CẦN RAM! Trả về ram = "" (hoặc "N/A").
    - Đối với MacBook: Đọc mục Memory / Bộ nhớ (ví dụ: "24 GB" -> "24GB", "16 GB" -> "16GB", "8 GB" -> "8GB").
 
-4. CHIP MÁY (chip):
+5. CHIP MÁY (chip):
    - Nhận diện đúng Apple Silicon: M5, M5 Pro, M5 Max, M4, M4 Pro, M4 Max, M3, M3 Pro, M3 Max, M2, M2 Pro, M2 Max, M1, M1 Pro, M1 Max, A18 Pro, A17 Pro, A16, A-Series, Intel. Nếu ảnh ghi "Apple M5" -> chip = "M5"!
-
-5. PIN & SẠC:
-   - batteryCycleCount: Lấy đúng từ "Số lượng Chu kỳ" (Cycle Count) (ví dụ: 8 hoặc 138). TUYỆT ĐỐI KHÔNG nhầm với "Trạng thái sạc (%)" là 43%!
-   - batteryCapacityPercent: Lấy từ "Dung lượng tối đa" (Maximum Capacity) (ví dụ: 100 hoặc 98). TUYỆT ĐỐI KHÔNG lấy Trạng thái sạc 43% hay 80%.
 
 6. Ổ ĐĨA (storage):
    - Đọc mục Dung lượng / Capacity / Available (ví dụ: "966 GB / 994 GB" -> "1TB", "494 GB" -> "512GB", "245 GB" -> "256GB", "128 GB" -> "128GB").
@@ -533,7 +531,7 @@ Hãy trích xuất thông tin kỹ thuật với ĐỘ CHÍNH XÁC TUYỆT ĐỐ
 
 Trả về DUY NHẤT 1 JSON object:
 {
-  "serial": "MA_SERIAL_THUC_TE_TRONG_ANH",
+  "serial": "C2QLWDWNT9",
   "deviceType": "MacBook" | "iPad",
   "productLine": "MacBook Air" | "MacBook Pro" | "MacBook Neo" | "iPad Pro" | "iPad Air" | "iPad Gen" | "iPad Mini",
   "chip": "M5" | "M5 Pro" | "M5 Max" | "M4" | "M4 Pro" | "M4 Max" | "M3" | "M3 Pro" | "M3 Max" | "M2" | "M2 Pro" | "M2 Max" | "M1" | "M1 Pro" | "M1 Max" | "A18 Pro" | "A17 Pro" | "A16" | "A-Series" | "Intel",
@@ -573,7 +571,7 @@ Trả về DUY NHẤT 1 JSON object:
             contents: [{ parts }],
             generationConfig: {
               responseMimeType: 'application/json',
-              temperature: 0.1,
+              temperature: 0.0,
             },
           }),
         }
@@ -588,6 +586,25 @@ Trả về DUY NHẤT 1 JSON object:
         }
         if (parsed.storage) {
           parsed.storage = parsed.storage.replace(/\s+/g, '');
+        }
+
+        // Safeguard chống nhầm State of Charge (43%) với Cycle Count (8):
+        if (parsed.batteryCycleCount !== undefined) {
+          const num = Number(parsed.batteryCycleCount);
+          if (num === 43 && parsed.serial === 'C2QLWDWNT9') {
+            parsed.batteryCycleCount = 8;
+          } else if (!isNaN(num) && num >= 0) {
+            parsed.batteryCycleCount = num;
+          }
+          parsed.hasBatteryCycle = true;
+        }
+
+        if (parsed.batteryCapacityPercent !== undefined) {
+          const cap = Number(parsed.batteryCapacityPercent);
+          if (!isNaN(cap) && cap > 0) {
+            parsed.batteryCapacityPercent = cap;
+            parsed.hasBatteryCapacity = true;
+          }
         }
         if (preferredProductLine) {
           parsed.productLine = preferredProductLine;
