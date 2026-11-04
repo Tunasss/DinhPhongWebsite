@@ -122,9 +122,16 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center justify-between gap-1.5 sm:gap-3">
           {/* Logo & Tên Shop */}
           <div className="nav-element flex items-center gap-2 sm:gap-3 min-w-0">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 p-0.5 shadow-md shadow-blue-500/20 flex items-center justify-center shrink-0">
-              <div className="w-full h-full bg-slate-900 rounded-[10px] sm:rounded-[14px] flex items-center justify-center">
-                <Laptop className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-pink-500 via-rose-500 to-indigo-600 p-0.5 shadow-md shadow-pink-500/20 flex items-center justify-center shrink-0">
+              <div className="w-full h-full bg-white dark:bg-slate-900 rounded-[10px] sm:rounded-[14px] flex items-center justify-center overflow-hidden p-0.5">
+                <img
+                  src="/apple-touch-icon.png"
+                  alt="Đình Phong Store"
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
+                />
               </div>
             </div>
             <div className="min-w-0">

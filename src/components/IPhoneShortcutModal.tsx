@@ -101,15 +101,12 @@ export const IPhoneShortcutModal: React.FC<IPhoneShortcutModalProps> = ({
           </button>
 
           <div className="flex items-center gap-3.5">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 p-0.5 shadow-lg shadow-blue-500/30 shrink-0">
-              <div className="w-full h-full bg-slate-900 rounded-[14px] flex items-center justify-center overflow-hidden">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-pink-500 via-rose-500 to-indigo-600 p-0.5 shadow-lg shadow-pink-500/25 shrink-0">
+              <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center overflow-hidden p-1 shadow-inner">
                 <img
                   src="/apple-touch-icon.png"
-                  alt="Đình Phong Apple"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = 'none';
-                  }}
+                  alt="Đình Phong Store"
+                  className="w-full h-full object-contain"
                 />
               </div>
             </div>
@@ -266,3 +263,4 @@ export const IPhoneShortcutModal: React.FC<IPhoneShortcutModalProps> = ({
     </div>
   );
 };
+
