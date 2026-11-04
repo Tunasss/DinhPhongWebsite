@@ -490,20 +490,36 @@ function handleUploadSingleImage(payload) {
   });
 }
 
+function removeAndTrashFile(file) {
+  if (!file) return;
+  try {
+    const parents = file.getParents();
+    while (parents.hasNext()) {
+      try {
+        parents.next().removeFile(file);
+      } catch (eP) {}
+    }
+  } catch (eParents) {}
+  try {
+    file.setTrashed(true);
+  } catch (eTrash) {}
+}
+
 function trashFolderAndAllFiles(folder) {
   if (!folder) return;
+  // 1. Gỡ bỏ và chuyển toàn bộ file ảnh trong thư mục vào Thùng rác
   try {
-    // Chuyển toàn bộ file ảnh trong thư mục vào Thùng rác
     const files = folder.getFiles();
     while (files.hasNext()) {
       try {
-        files.next().setTrashed(true);
+        const f = files.next();
+        removeAndTrashFile(f);
       } catch (e1) {}
     }
   } catch (e) {}
 
+  // 2. Chuyển toàn bộ thư mục con vào Thùng rác đệ quy
   try {
-    // Chuyển toàn bộ thư mục con vào Thùng rác đệ quy
     const subfolders = folder.getFolders();
     while (subfolders.hasNext()) {
       try {
@@ -512,9 +528,20 @@ function trashFolderAndAllFiles(folder) {
     }
   } catch (e) {}
 
+  // 3. Gỡ bỏ folder khỏi tất cả thư mục cha (Unlink để không còn hiển thị trong cây thư mục Drive)
+  try {
+    const parents = folder.getParents();
+    while (parents.hasNext()) {
+      try {
+        parents.next().removeFolder(folder);
+      } catch (e3) {}
+    }
+  } catch (eParents) {}
+
+  // 4. Đưa folder vào Thùng rác
   try {
     folder.setTrashed(true);
-  } catch (e3) {}
+  } catch (e4) {}
 }
 
 function handleDeleteDevice(payload) {
@@ -524,22 +551,24 @@ function handleDeleteDevice(payload) {
   const data = sheet.getDataRange().getValues();
 
   let targetDriveFolderId = payload.driveFolderId;
-  let targetSerial = (payload.serial || '').toUpperCase();
+  let targetSerial = (payload.serial || '').toUpperCase().trim();
 
   let foundRow = -1;
   let imagesJsonStr = '';
   for (let r = 1; r < data.length; r++) {
     if (String(data[r][0]) === String(id)) {
       foundRow = r + 1;
-      // Cột 25 (index 24): driveFolderId
-      if (!targetDriveFolderId && data[r][24]) {
-        targetDriveFolderId = data[r][24];
+      // Cột 25 (index 24): driveFolderId lưu trong Sheet (nguồn sự thật)
+      const sheetFolderId = String(data[r][24] || '').trim();
+      if (sheetFolderId && sheetFolderId !== DEFAULT_ROOT_FOLDER_ID && sheetFolderId !== rootFolderId) {
+        targetDriveFolderId = sheetFolderId;
       }
-      // Cột 2 (index 1): serial
-      if (!targetSerial && data[r][1]) {
-        targetSerial = String(data[r][1]).toUpperCase();
+      // Cột 2 (index 1): serial trong Sheet
+      const sheetSerial = String(data[r][1] || '').toUpperCase().trim();
+      if (sheetSerial) {
+        targetSerial = sheetSerial;
       }
-      // Cột 28 (index 27): imagesJson
+      // Cột 28 (index 27): imagesJson trong Sheet
       if (data[r][27]) {
         imagesJsonStr = String(data[r][27]);
       }
@@ -547,11 +576,11 @@ function handleDeleteDevice(payload) {
     }
   }
 
-  // 1. Chuyển trực tiếp tất cả file ảnh vào Thùng rác bằng File ID
+  // 1. Chuyển trực tiếp tất cả file ảnh vào Thùng rác bằng File ID (từ payload + sheet)
   const directFiles = [];
   if (Array.isArray(payload.images)) {
     payload.images.forEach(function(img) {
-      if (img && img.id) directFiles.push(img.id);
+      if (img && img.id && directFiles.indexOf(img.id) === -1) directFiles.push(img.id);
     });
   }
   if (imagesJsonStr) {
@@ -570,8 +599,8 @@ function handleDeleteDevice(payload) {
   directFiles.forEach(function(fileId) {
     try {
       const f = DriveApp.getFileById(fileId);
-      if (f && !f.isTrashed()) {
-        f.setTrashed(true);
+      if (f) {
+        removeAndTrashFile(f);
       }
     } catch (e) {}
   });
@@ -590,8 +619,27 @@ function handleDeleteDevice(payload) {
     } catch (e) {}
   }
 
-  // 3. Quét đệ quy trong DinhPhongData tìm bất kỳ thư mục con nào khớp Serial máy
-  if (targetSerial) {
+  // 3. Tìm kiếm toàn cục trong DriveApp theo Serial máy để xóa sạch 100%
+  if (targetSerial && targetSerial.length >= 4) {
+    // 3a. Tìm mọi folder có tên chứa Serial
+    try {
+      const matchedFolders = DriveApp.searchFolders("title contains '" + targetSerial + "' and trashed = false");
+      while (matchedFolders.hasNext()) {
+        const sf = matchedFolders.next();
+        trashFolderAndAllFiles(sf);
+      }
+    } catch (eSF) {}
+
+    // 3b. Tìm mọi file ảnh có tên chứa Serial
+    try {
+      const matchedFiles = DriveApp.searchFiles("title contains '" + targetSerial + "' and trashed = false");
+      while (matchedFiles.hasNext()) {
+        const mf = matchedFiles.next();
+        removeAndTrashFile(mf);
+      }
+    } catch (eMF) {}
+
+    // 3c. Quét đệ quy cây thư mục DinhPhongData phòng khi index tìm kiếm bị trễ
     try {
       function searchAndTrashBySerial(parent) {
         const sub = parent.getFolders();
@@ -608,13 +656,13 @@ function handleDeleteDevice(payload) {
         }
       }
       searchAndTrashBySerial(rootFolder);
-    } catch (e) {}
+    } catch (eRec) {}
   }
 
   // 4. Xóa hàng khỏi Google Sheet
   if (foundRow > 0) {
     sheet.deleteRow(foundRow);
-    return jsonResponse({ ok: true, deletedDriveFolder: true });
+    return jsonResponse({ ok: true, deletedDriveFolder: true, deletedRow: foundRow });
   }
 
   return jsonResponse({ ok: true, note: 'Đã dọn dẹp ảnh và thư mục' });

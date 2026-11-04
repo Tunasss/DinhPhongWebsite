@@ -17,6 +17,7 @@ import {
   Moon,
   ChevronDown,
   KeyRound,
+  Smartphone,
 } from 'lucide-react';
 import { AppleDevice, AppSettings } from '../types';
 import { formatCurrencyVND } from '../utils/mobileDownload';
@@ -39,6 +40,7 @@ interface NavbarProps {
   onOpenSettingsModal: () => void;
   onOpenUserManagement?: () => void;
   onOpenChangePassword?: () => void;
+  onOpenIPhoneShortcutModal?: () => void;
   onLogout: () => void;
   onRefresh: () => void;
 }
@@ -57,6 +59,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSettingsModal,
   onOpenUserManagement,
   onOpenChangePassword,
+  onOpenIPhoneShortcutModal,
   onLogout,
   onRefresh,
 }) => {
@@ -162,6 +165,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-blue-500' : ''}`} />
               <span className="hidden md:inline">{isSyncing ? 'Đang đồng bộ...' : 'Đồng bộ'}</span>
             </button>
+
+            {/* 1b. Nút Cài App / Phím tắt iPhone */}
+            {onOpenIPhoneShortcutModal && (
+              <button
+                type="button"
+                onClick={onOpenIPhoneShortcutModal}
+                className="p-1.5 sm:px-2.5 sm:py-2 rounded-xl border font-semibold text-xs transition cursor-pointer flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 border-slate-300 dark:border-slate-700/80 text-slate-700 dark:text-slate-300 shadow-xs hover:text-blue-600 dark:hover:text-blue-400"
+                title="Tạo phím tắt ra màn hình chính iPhone / iPad"
+              >
+                <Smartphone className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                <span className="hidden lg:inline">Cài App iPhone</span>
+              </button>
+            )}
 
             {/* 2. Menu Dữ liệu Cloud & Lưu trữ */}
             <div ref={cloudMenuRef} className="relative">
@@ -400,6 +416,26 @@ export const Navbar: React.FC<NavbarProps> = ({
                           <KeyRound className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                           <span>Đổi Mật Khẩu Cá Nhân</span>
                         </div>
+                      </button>
+                    )}
+
+                    {/* Nút Tạo phím tắt iPhone (Add to Home Screen) */}
+                    {onOpenIPhoneShortcutModal && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsProfileMenuOpen(false);
+                          onOpenIPhoneShortcutModal();
+                        }}
+                        className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/30 text-blue-900 dark:text-blue-300 transition text-xs font-semibold cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Smartphone className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          <span>Cài App ra MH chính iPhone</span>
+                        </div>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300">
+                          iOS
+                        </span>
                       </button>
                     )}
                   </div>

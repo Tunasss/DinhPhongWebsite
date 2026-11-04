@@ -36,6 +36,7 @@ import { DeviceCard } from './components/DeviceCard';
 import { DeviceDetailModal } from './components/DeviceDetailModal';
 import { AddEditDeviceModal } from './components/AddEditDeviceModal';
 import { GoogleSetupModal } from './components/GoogleSetupModal';
+import { IPhoneShortcutModal } from './components/IPhoneShortcutModal';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 
@@ -79,6 +80,7 @@ export const App: React.FC = () => {
   const [editingDevice, setEditingDevice] = useState<AppleDevice | null>(null);
   const [isAddEditOpen, setIsAddEditOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isIPhoneShortcutOpen, setIsIPhoneShortcutOpen] = useState(false);
 
   // Thông báo nhanh (Toast)
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -345,6 +347,7 @@ export const App: React.FC = () => {
         onOpenSettingsModal={() => setIsSettingsOpen(true)}
         onOpenUserManagement={() => setIsUserManagementOpen(true)}
         onOpenChangePassword={() => setIsChangePasswordOpen(true)}
+        onOpenIPhoneShortcutModal={() => setIsIPhoneShortcutOpen(true)}
         onLogout={handleLogout}
         onRefresh={() => {
           syncInventory(settings);
@@ -558,6 +561,13 @@ export const App: React.FC = () => {
           onNotify={showToast}
         />
       )}
+
+      {/* Hộp thoại Hướng dẫn Thêm phím tắt Màn hình chính iPhone (PWA Add to Home Screen) */}
+      <IPhoneShortcutModal
+        isOpen={isIPhoneShortcutOpen}
+        onClose={() => setIsIPhoneShortcutOpen(false)}
+        onNotify={showToast}
+      />
 
       {/* Toast thông báo */}
       {toastMessage && (
