@@ -121,12 +121,12 @@ export const Navbar: React.FC<NavbarProps> = ({
       ref={navRef}
       className="sticky top-0 z-30 bg-white/95 dark:bg-slate-950/90 text-slate-900 dark:text-white shadow-sm dark:shadow-xl backdrop-blur-xl border-b border-slate-200 dark:border-slate-800/80 transition-colors"
     >
-      <div className="max-w-7xl mx-auto px-2.5 sm:px-6 py-2 sm:py-2.5">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-2.5">
         <div className="flex items-center justify-between gap-1 sm:gap-3 relative z-20">
           {/* Logo & Tên Shop (Logo trong suốt DP bo sát viền sang trọng) */}
           <div className="nav-element flex items-center gap-1.5 sm:gap-3 shrink-0">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-pink-500 via-rose-500 to-indigo-600 p-[1.5px] shadow-md shadow-pink-500/25 flex items-center justify-center shrink-0">
-              <div className="w-full h-full bg-slate-50 dark:bg-slate-950 rounded-[10px] sm:rounded-[14px] flex items-center justify-center overflow-hidden p-0.5">
+            <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-lg sm:rounded-2xl bg-gradient-to-tr from-pink-500 via-rose-500 to-indigo-600 p-[1.5px] shadow-md shadow-pink-500/25 flex items-center justify-center shrink-0">
+              <div className="w-full h-full bg-slate-50 dark:bg-slate-950 rounded-[7px] sm:rounded-[14px] flex items-center justify-center overflow-hidden p-0.5">
                 <img
                   src="/dp-logo.png"
                   alt="Đình Phong Apple"
@@ -138,7 +138,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             </div>
             <div className="shrink-0 flex items-center gap-1.5">
-              <h1 className="font-black text-[13px] xs:text-sm sm:text-base md:text-lg tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
+              <h1 className="font-black text-xs sm:text-base md:text-lg tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
                 {settings.shopName || 'Đình Phong Apple'}
               </h1>
               {/* Nút Cloud chỉ hiển thị từ màn hình sm trở lên để nhường trọn không gian cho tên shop trên mobile */}
@@ -271,7 +271,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* 3. Nút Tạo list đăng bài Facebook (CTA chính theo yêu cầu) */}
             <button
               onClick={onOpenPostGenerator}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:via-indigo-500 hover:to-violet-500 text-white text-xs font-bold shadow-md shadow-indigo-600/25 transition cursor-pointer transform active:scale-95 shrink-0"
+              className="inline-flex items-center gap-1 sm:gap-1.5 px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:via-indigo-500 hover:to-violet-500 text-white text-[11px] sm:text-xs font-bold shadow-md shadow-indigo-600/25 transition cursor-pointer transform active:scale-95 shrink-0"
               title="Tạo list máy & bài đăng Facebook chuẩn form"
             >
               <FileText className="w-3.5 h-3.5 shrink-0" />
@@ -281,7 +281,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* 3b. Nút Nhập máy (Màu xanh ngọc nổi bật, bỏ dấu + lặp trong text) */}
             <button
               onClick={onOpenAddModal}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-md shadow-emerald-600/25 transition cursor-pointer transform active:scale-95 shrink-0"
+              className="inline-flex items-center gap-1 sm:gap-1.5 px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-[11px] sm:text-xs font-bold shadow-md shadow-emerald-600/25 transition cursor-pointer transform active:scale-95 shrink-0"
               title="Nhập sản phẩm mới vào kho"
             >
               <Plus className="w-3.5 h-3.5 text-white shrink-0" />
@@ -296,7 +296,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   setIsProfileMenuOpen((prev) => !prev);
                   setIsCloudMenuOpen(false);
                 }}
-                className={`flex items-center gap-1.5 p-1 sm:px-2.5 sm:py-1.5 rounded-xl border transition cursor-pointer shadow-xs ${
+                className={`flex items-center gap-1 sm:gap-1.5 p-0.5 sm:px-2.5 sm:py-1.5 rounded-xl border transition cursor-pointer shadow-xs ${
                   isProfileMenuOpen
                     ? 'bg-slate-100 border-slate-300 dark:bg-slate-800 dark:border-slate-700'
                     : 'bg-white hover:bg-slate-100 dark:bg-slate-900/90 dark:hover:bg-slate-800 border-slate-300 dark:border-slate-700/80'
@@ -321,7 +321,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
                 </div>
                 <ChevronDown
-                  className={`w-3.5 h-3.5 text-slate-500 dark:text-slate-400 transition-transform ${
+                  className={`w-3.5 h-3.5 text-slate-500 dark:text-slate-400 transition-transform hidden sm:block ${
                     isProfileMenuOpen ? 'rotate-180' : ''
                   }`}
                 />
