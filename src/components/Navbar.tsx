@@ -122,7 +122,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       className="sticky top-0 z-30 bg-white/95 dark:bg-slate-950/90 text-slate-900 dark:text-white shadow-sm dark:shadow-xl backdrop-blur-xl border-b border-slate-200 dark:border-slate-800/80 transition-colors"
     >
       <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5">
-        <div className="flex items-center justify-between gap-1.5 sm:gap-3">
+        <div className="flex items-center justify-between gap-1.5 sm:gap-3 relative z-20">
           {/* Logo & Tên Shop */}
           <div className="nav-element flex items-center gap-2 sm:gap-3 min-w-0">
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-pink-500 via-rose-500 to-indigo-600 p-0.5 shadow-md shadow-pink-500/20 flex items-center justify-center shrink-0">
@@ -163,7 +163,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Cụm nút thao tác tinh gọn & Menu dạng dropdown hiện đại */}
-          <div className="nav-element flex items-center gap-1 sm:gap-2 shrink-0">
+          <div className="nav-element flex items-center gap-1 sm:gap-2 shrink-0 relative z-30">
             {/* 1. Nút Đồng bộ Dữ liệu */}
             <button
               type="button"
@@ -175,19 +175,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-blue-500' : ''}`} />
               <span className="hidden md:inline">{isSyncing ? 'Đang đồng bộ...' : 'Đồng bộ'}</span>
             </button>
-
-            {/* 1b. Nút Cài App / Phím tắt iPhone */}
-            {onOpenIPhoneShortcutModal && (
-              <button
-                type="button"
-                onClick={onOpenIPhoneShortcutModal}
-                className="p-1.5 sm:px-2.5 sm:py-2 rounded-xl border font-semibold text-xs transition cursor-pointer flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 border-slate-300 dark:border-slate-700/80 text-slate-700 dark:text-slate-300 shadow-xs hover:text-blue-600 dark:hover:text-blue-400"
-                title="Tạo phím tắt ra màn hình chính iPhone / iPad"
-              >
-                <Smartphone className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-                <span className="hidden lg:inline">Cài App iPhone</span>
-              </button>
-            )}
 
             {/* 2. Menu Dữ liệu Cloud & Lưu trữ */}
             <div ref={cloudMenuRef} className="relative">
@@ -288,22 +275,21 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* 3. Nút Tạo list đăng bài Facebook (CTA chính theo yêu cầu) */}
             <button
               onClick={onOpenPostGenerator}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:via-indigo-500 hover:to-violet-500 text-white text-xs sm:text-sm font-bold shadow-md shadow-indigo-600/25 transition cursor-pointer transform active:scale-95 shrink-0"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:via-indigo-500 hover:to-violet-500 text-white text-xs font-bold shadow-md shadow-indigo-600/25 transition cursor-pointer transform active:scale-95 shrink-0"
               title="Tạo list máy & bài đăng Facebook chuẩn form"
             >
-              <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-              <span className="hidden sm:inline">Tạo bài đăng</span>
-              <span className="sm:hidden">Bài đăng</span>
+              <FileText className="w-3.5 h-3.5 shrink-0" />
+              <span>Bài Đăng</span>
             </button>
 
-            {/* 3b. Nút Nhập sản phẩm (Giữ lại gọn gàng để nhân sự vẫn nhập máy) */}
+            {/* 3b. Nút Nhập máy (Màu xanh ngọc nổi bật, bỏ dấu + lặp trong text) */}
             <button
               onClick={onOpenAddModal}
-              className="inline-flex items-center gap-1 p-1.5 sm:px-2.5 sm:py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold transition cursor-pointer shadow-xs shrink-0"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-md shadow-emerald-600/25 transition cursor-pointer transform active:scale-95 shrink-0"
               title="Nhập sản phẩm mới vào kho"
             >
-              <Plus className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-              <span className="hidden md:inline">+ Nhập máy</span>
+              <Plus className="w-3.5 h-3.5 text-white shrink-0" />
+              <span>Nhập máy</span>
             </button>
 
             {/* 4. Menu Tài Khoản & Cài Đặt (Profile & Settings Dropdown) */}
@@ -346,9 +332,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
 
               {isProfileMenuOpen && (
-                <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl shadow-slate-900/10 dark:shadow-2xl dark:shadow-black/70 p-2 z-50 text-slate-800 dark:text-slate-100 animate-in fade-in slide-in-from-top-2 duration-150">
-                  {/* Header tài khoản */}
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl mb-2 flex items-center gap-3">
+                <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl dark:shadow-black/80 p-2 z-50 text-slate-800 dark:text-slate-100 animate-in fade-in slide-in-from-top-2 duration-150">
+                  {/* Header tài khoản (nền đục 100% chống xuyên thấu) */}
+                  <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl mb-2 flex items-center gap-3">
                     <div
                       className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm uppercase text-white shadow-sm shrink-0 ${
                         isAdmin ? 'bg-amber-600' : 'bg-blue-600'
@@ -540,8 +526,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Thanh thống kê nhanh kho hàng */}
-        <div className="nav-element grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 mt-2 pt-2 border-t border-slate-200 dark:border-slate-800/80 text-[11px] sm:text-xs">
+        {/* Thanh thống kê nhanh kho hàng (relative z-0 tránh đè lên dropdown menu) */}
+        <div className="nav-element grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 mt-2 pt-2 border-t border-slate-200 dark:border-slate-800/80 text-[11px] sm:text-xs relative z-0">
           <div className="bg-slate-100/90 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800/80 rounded-xl px-2 sm:px-3 py-1 sm:py-1.5 flex items-center justify-between">
             <span className="text-slate-600 dark:text-slate-400 font-medium">Sẵn hàng:</span>
             <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm">

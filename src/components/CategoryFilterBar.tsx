@@ -7,7 +7,6 @@ import {
   Filter,
   X,
   CheckCircle2,
-  FileText,
 } from 'lucide-react';
 import { AppleDevice, DeviceStatus, ProductLine, APPLE_COLORS } from '../types';
 
@@ -31,7 +30,6 @@ interface CategoryFilterBarProps {
   onSelectColor: (color: string) => void;
   onSearchChange: (q: string) => void;
   onResetFilters: () => void;
-  onOpenPostGenerator?: () => void;
 }
 
 export const CategoryFilterBar: React.FC<CategoryFilterBarProps> = ({
@@ -47,7 +45,6 @@ export const CategoryFilterBar: React.FC<CategoryFilterBarProps> = ({
   onSelectColor,
   onSearchChange,
   onResetFilters,
-  onOpenPostGenerator,
 }) => {
   // Lấy danh sách màu sắc thực tế trong kho và các màu Apple chuẩn
   const colorCountMap = new Map<string, number>();
@@ -237,19 +234,6 @@ export const CategoryFilterBar: React.FC<CategoryFilterBarProps> = ({
                 ▼
               </div>
             </div>
-
-            {/* Nút Tạo bài đăng FB nhanh */}
-            {onOpenPostGenerator && (
-              <button
-                type="button"
-                onClick={onOpenPostGenerator}
-                className="col-span-2 sm:col-span-1 shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-sm shadow-blue-500/25 transition cursor-pointer active:scale-95"
-                title="Tạo bài đăng Facebook từ các máy đang lọc"
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span>Đăng FB</span>
-              </button>
-            )}
 
             {/* Nút Xóa lọc nếu có bộ lọc đang bật */}
             {hasActiveFilters && (

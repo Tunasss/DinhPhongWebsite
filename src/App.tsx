@@ -2,8 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Plus,
   Laptop,
-  FolderKanban,
-  Sparkles,
   AlertCircle,
   FileSpreadsheet,
   Keyboard,
@@ -372,7 +370,6 @@ export const App: React.FC = () => {
         onSelectColor={setSelectedColor}
         onSearchChange={setSearchQuery}
         onResetFilters={handleResetFilters}
-        onOpenPostGenerator={() => setIsPostGeneratorOpen(true)}
       />
 
       {/* Khu vực danh sách máy */}
@@ -404,35 +401,6 @@ export const App: React.FC = () => {
             </div>
           </div>
         )}
-
-        {/* Banner Quản lý 3 Hạng mục: MacBook, iPad & Phụ kiện */}
-        <div className="rounded-2xl bg-white dark:bg-gradient-to-r dark:from-slate-900 dark:via-slate-850 dark:to-indigo-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-3.5 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs dark:shadow-md">
-          <div className="flex items-start sm:items-center gap-3">
-            <div className="p-2 rounded-xl bg-blue-500/15 text-blue-600 dark:text-blue-400 shrink-0">
-              <FolderKanban className="w-5 h-5" />
-            </div>
-            <div className="text-xs sm:text-sm">
-              <span className="font-bold text-amber-700 dark:text-amber-300">
-                Kho Máy &amp; Phụ Kiện Đình Phong Apple:{' '}
-              </span>
-              <span className="text-slate-600 dark:text-slate-300">
-                Hỗ trợ phân loại 3 nhóm <b>MacBook</b>, <b>iPad</b> và{' '}
-                <b>Phụ kiện (Magic Keyboard, Pencil...)</b>. Tự động lưu Folder Serial và Sheet dữ liệu thô!
-              </span>
-            </div>
-          </div>
-
-          <button
-            onClick={() => {
-              setEditingDevice(null);
-              setIsAddEditOpen(true);
-            }}
-            className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 sm:py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-600/30 transition cursor-pointer"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-cyan-200" />
-            <span>+ Nhập sản phẩm mới</span>
-          </button>
-        </div>
 
         {/* Lưới thẻ sản phẩm (GSAP Stagger Reveal) */}
         {isInitialLoading || (devices.length === 0 && isSyncing) ? (
