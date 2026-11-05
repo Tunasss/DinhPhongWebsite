@@ -121,12 +121,12 @@ export const Navbar: React.FC<NavbarProps> = ({
       ref={navRef}
       className="sticky top-0 z-30 bg-white/95 dark:bg-slate-950/90 text-slate-900 dark:text-white shadow-sm dark:shadow-xl backdrop-blur-xl border-b border-slate-200 dark:border-slate-800/80 transition-colors"
     >
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5">
-        <div className="flex items-center justify-between gap-1.5 sm:gap-3 relative z-20">
-          {/* Logo & Tên Shop */}
-          <div className="nav-element flex items-center gap-2 sm:gap-3 min-w-0">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-pink-500 via-rose-500 to-indigo-600 p-0.5 shadow-md shadow-pink-500/20 flex items-center justify-center shrink-0">
-              <div className="w-full h-full bg-white dark:bg-slate-900 rounded-[10px] sm:rounded-[14px] flex items-center justify-center overflow-hidden p-0.5">
+      <div className="max-w-7xl mx-auto px-2.5 sm:px-6 py-2 sm:py-2.5">
+        <div className="flex items-center justify-between gap-1 sm:gap-3 relative z-20">
+          {/* Logo & Tên Shop (Luôn hiển thị đầy đủ tên Đình Phong Apple trên mobile) */}
+          <div className="nav-element flex items-center gap-1.5 sm:gap-3 shrink-0">
+            <div className="w-7 h-7 xs:w-8 xs:h-8 sm:w-10 sm:h-10 rounded-lg xs:rounded-xl sm:rounded-2xl bg-gradient-to-tr from-pink-500 via-rose-500 to-indigo-600 p-0.5 shadow-md shadow-pink-500/20 flex items-center justify-center shrink-0">
+              <div className="w-full h-full bg-white dark:bg-slate-900 rounded-[7px] xs:rounded-[10px] sm:rounded-[14px] flex items-center justify-center overflow-hidden p-0.5">
                 <img
                   src="/apple-touch-icon.png"
                   alt="Đình Phong Store"
@@ -137,28 +137,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                 />
               </div>
             </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <h1 className="font-black text-sm sm:text-lg tracking-tight text-slate-900 dark:text-white truncate max-w-[120px] xs:max-w-[160px] sm:max-w-none">
-                  {settings.shopName || 'Đình Phong Apple'}
-                </h1>
-                <button
-                  type="button"
-                  onClick={onOpenSettingsModal}
-                  className={`cursor-pointer inline-flex items-center gap-1 px-1.5 sm:px-2.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold border transition shrink-0 ${
-                    hasScriptUrl && isCloudConnected
-                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
-                      : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 animate-pulse'
-                  }`}
-                  title="Bấm để mở cấu hình Google Drive & Sheet"
-                >
-                  <Cloud className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span className="hidden xs:inline">{hasScriptUrl ? 'Cloud' : 'Nối Drive'}</span>
-                </button>
-              </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block truncate">
-                Hệ thống Quản lý Kho &amp; Bán hàng chuyên nghiệp
-              </p>
+            <div className="shrink-0 flex items-center gap-1.5">
+              <h1 className="font-black text-[13px] xs:text-sm sm:text-base md:text-lg tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
+                {settings.shopName || 'Đình Phong Apple'}
+              </h1>
+              {/* Nút Cloud chỉ hiển thị từ màn hình sm trở lên để nhường trọn không gian cho tên shop trên mobile */}
+              <button
+                type="button"
+                onClick={onOpenSettingsModal}
+                className={`cursor-pointer hidden sm:inline-flex items-center gap-1 px-1.5 sm:px-2.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold border transition shrink-0 ${
+                  hasScriptUrl && isCloudConnected
+                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                    : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 animate-pulse'
+                }`}
+                title="Bấm để mở cấu hình Google Drive & Sheet"
+              >
+                <Cloud className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>{hasScriptUrl ? 'Cloud' : 'Nối Drive'}</span>
+              </button>
             </div>
           </div>
 
@@ -176,8 +172,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="hidden md:inline">{isSyncing ? 'Đang đồng bộ...' : 'Đồng bộ'}</span>
             </button>
 
-            {/* 2. Menu Dữ liệu Cloud & Lưu trữ */}
-            <div ref={cloudMenuRef} className="relative">
+            {/* 2. Menu Dữ liệu Cloud & Lưu trữ (Hiển thị trên màn hình md trở lên, trên mobile đã tích hợp trong menu Profile) */}
+            <div ref={cloudMenuRef} className="relative hidden md:block">
               <button
                 type="button"
                 onClick={() => {
@@ -465,6 +461,43 @@ export const Navbar: React.FC<NavbarProps> = ({
                         </span>
                       </button>
                     )}
+
+                    {/* Liên kết Drive & Sheet (Thuận tiện khi dùng trên điện thoại) */}
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1">
+                      <div className="px-2.5 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Dữ liệu &amp; Lưu trữ Cloud
+                      </div>
+                      <a
+                        href={
+                          sheetUrl ||
+                          'https://docs.google.com/spreadsheets/d/1hrn38CRokXNRRMQalwelBXLuYplY_2-m2Uybpz-9sQI/edit'
+                        }
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        className="flex items-center justify-between p-2.5 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-950/30 text-emerald-900 dark:text-emerald-300 transition text-xs font-semibold group"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <span>Google Sheet Thô</span>
+                        </div>
+                        <ExternalLink className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 shrink-0" />
+                      </a>
+
+                      <a
+                        href={rootDriveUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        className="flex items-center justify-between p-2.5 rounded-xl hover:bg-amber-50 dark:hover:bg-amber-950/30 text-amber-900 dark:text-amber-300 transition text-xs font-semibold group"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <FolderOpen className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                          <span>Thư mục Drive Gốc</span>
+                        </div>
+                        <ExternalLink className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 shrink-0" />
+                      </a>
+                    </div>
                   </div>
 
                   {/* Mục Quản trị viên */}
