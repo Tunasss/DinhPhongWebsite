@@ -67,10 +67,10 @@ export const App: React.FC = () => {
   const [isCloudConnected, setIsCloudConnected] = useState(false);
   const [cloudSheetUrl, setCloudSheetUrl] = useState<string | undefined>(undefined);
 
-  // Bộ lọc kiểu trang bán hàng + quản lý nội bộ
+  // Bộ lọc kiểu trang bán hàng + quản lý nội bộ (Mặc định xem máy Sẵn hàng)
   const [selectedLine, setSelectedLine] = useState<CategoryFilterLine>('ALL');
   const [selectedChip, setSelectedChip] = useState<string>('ALL');
-  const [selectedStatus, setSelectedStatus] = useState<DeviceStatus | 'ALL'>('ALL');
+  const [selectedStatus, setSelectedStatus] = useState<DeviceStatus | 'ALL'>('available');
   const [selectedColor, setSelectedColor] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -305,7 +305,7 @@ export const App: React.FC = () => {
   const handleResetFilters = () => {
     setSelectedLine('ALL');
     setSelectedChip('ALL');
-    setSelectedStatus('ALL');
+    setSelectedStatus('available');
     setSelectedColor('ALL');
     setSearchQuery('');
   };

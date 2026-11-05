@@ -71,7 +71,7 @@ export const CategoryFilterBar: React.FC<CategoryFilterBarProps> = ({
   const hasActiveFilters =
     selectedLine !== 'ALL' ||
     selectedChip !== 'ALL' ||
-    selectedStatus !== 'ALL' ||
+    selectedStatus !== 'available' ||
     selectedColor !== 'ALL' ||
     searchQuery.trim() !== '';
 
@@ -185,14 +185,16 @@ export const CategoryFilterBar: React.FC<CategoryFilterBarProps> = ({
                 value={selectedStatus}
                 onChange={(e) => onSelectStatus(e.target.value as DeviceStatus | 'ALL')}
                 className={`w-full sm:w-auto pl-8 pr-6 py-2 rounded-xl border text-xs sm:text-sm font-bold transition cursor-pointer appearance-none truncate ${
-                  selectedStatus !== 'ALL'
+                  selectedStatus === 'available'
                     ? 'bg-emerald-50 text-emerald-800 border-emerald-400 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-500'
+                    : selectedStatus !== 'ALL'
+                    ? 'bg-amber-50 text-amber-800 border-amber-400 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-500'
                     : 'bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-950/70 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700'
                 }`}
                 title="Lọc theo trạng thái kho"
               >
-                <option value="ALL">📦 Tất cả</option>
                 <option value="available">🟢 Sẵn hàng</option>
+                <option value="ALL">📦 Tất cả máy</option>
                 <option value="deposited">🟡 Đã cọc</option>
                 <option value="sold">🔴 Đã bán</option>
               </select>
