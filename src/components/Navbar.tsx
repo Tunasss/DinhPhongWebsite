@@ -123,13 +123,13 @@ export const Navbar: React.FC<NavbarProps> = ({
     >
       <div className="max-w-7xl mx-auto px-2.5 sm:px-6 py-2 sm:py-2.5">
         <div className="flex items-center justify-between gap-1 sm:gap-3 relative z-20">
-          {/* Logo & Tên Shop (Luôn hiển thị đầy đủ tên Đình Phong Apple trên mobile) */}
+          {/* Logo & Tên Shop (Logo trong suốt DP bo sát viền sang trọng) */}
           <div className="nav-element flex items-center gap-1.5 sm:gap-3 shrink-0">
-            <div className="w-7 h-7 xs:w-8 xs:h-8 sm:w-10 sm:h-10 rounded-lg xs:rounded-xl sm:rounded-2xl bg-gradient-to-tr from-pink-500 via-rose-500 to-indigo-600 p-0.5 shadow-md shadow-pink-500/20 flex items-center justify-center shrink-0">
-              <div className="w-full h-full bg-white dark:bg-slate-900 rounded-[7px] xs:rounded-[10px] sm:rounded-[14px] flex items-center justify-center overflow-hidden p-0.5">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-pink-500 via-rose-500 to-indigo-600 p-[1.5px] shadow-md shadow-pink-500/25 flex items-center justify-center shrink-0">
+              <div className="w-full h-full bg-slate-50 dark:bg-slate-950 rounded-[10px] sm:rounded-[14px] flex items-center justify-center overflow-hidden p-0.5">
                 <img
-                  src="/apple-touch-icon.png"
-                  alt="Đình Phong Store"
+                  src="/dp-logo.png"
+                  alt="Đình Phong Apple"
                   className="w-full h-full object-contain"
                   onError={(e) => {
                     (e.target as HTMLElement).style.display = 'none';

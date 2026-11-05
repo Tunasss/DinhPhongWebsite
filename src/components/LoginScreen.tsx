@@ -121,10 +121,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
           {/* Logo & Header */}
           <div className="text-center space-y-2 mb-7">
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-tr from-pink-500 via-rose-500 to-indigo-600 p-0.5 shadow-lg shadow-pink-500/25 flex items-center justify-center">
-              <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center overflow-hidden p-1 shadow-inner">
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-tr from-pink-500 via-rose-500 to-indigo-600 p-[1.5px] shadow-lg shadow-pink-500/25 flex items-center justify-center">
+              <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center overflow-hidden p-1 shadow-inner">
                 <img
-                  src="/apple-touch-icon.png"
+                  src="/dp-logo.png"
                   alt="Đình Phong Store"
                   className="w-full h-full object-contain"
                   onError={(e) => {
