@@ -18,6 +18,7 @@ import {
   ChevronDown,
   KeyRound,
   Smartphone,
+  FileText,
 } from 'lucide-react';
 import { AppleDevice, AppSettings } from '../types';
 import { formatCurrencyVND } from '../utils/mobileDownload';
@@ -41,6 +42,7 @@ interface NavbarProps {
   onOpenUserManagement?: () => void;
   onOpenChangePassword?: () => void;
   onOpenIPhoneShortcutModal?: () => void;
+  onOpenPostGenerator?: () => void;
   onLogout: () => void;
   onRefresh: () => void;
 }
@@ -60,6 +62,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenUserManagement,
   onOpenChangePassword,
   onOpenIPhoneShortcutModal,
+  onOpenPostGenerator,
   onLogout,
   onRefresh,
 }) => {
@@ -282,14 +285,25 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
 
-            {/* 3. Nút Nhập sản phẩm (CTA nổi bật nhất) */}
+            {/* 3. Nút Tạo list đăng bài Facebook (CTA chính theo yêu cầu) */}
+            <button
+              onClick={onOpenPostGenerator}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:via-indigo-500 hover:to-violet-500 text-white text-xs sm:text-sm font-bold shadow-md shadow-indigo-600/25 transition cursor-pointer transform active:scale-95 shrink-0"
+              title="Tạo list máy & bài đăng Facebook chuẩn form"
+            >
+              <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="hidden sm:inline">Tạo bài đăng</span>
+              <span className="sm:hidden">Bài đăng</span>
+            </button>
+
+            {/* 3b. Nút Nhập sản phẩm (Giữ lại gọn gàng để nhân sự vẫn nhập máy) */}
             <button
               onClick={onOpenAddModal}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-bold shadow-md shadow-blue-600/25 transition cursor-pointer transform active:scale-95 shrink-0"
+              className="inline-flex items-center gap-1 p-1.5 sm:px-2.5 sm:py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold transition cursor-pointer shadow-xs shrink-0"
+              title="Nhập sản phẩm mới vào kho"
             >
-              <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-              <span className="hidden sm:inline">+ Nhập sản phẩm</span>
-              <span className="sm:hidden">+ Nhập</span>
+              <Plus className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+              <span className="hidden md:inline">+ Nhập máy</span>
             </button>
 
             {/* 4. Menu Tài Khoản & Cài Đặt (Profile & Settings Dropdown) */}
@@ -423,6 +437,26 @@ export const Navbar: React.FC<NavbarProps> = ({
                           <KeyRound className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                           <span>Đổi Mật Khẩu Cá Nhân</span>
                         </div>
+                      </button>
+                    )}
+
+                    {/* Nút Tạo bài đăng Facebook */}
+                    {onOpenPostGenerator && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsProfileMenuOpen(false);
+                          onOpenPostGenerator();
+                        }}
+                        className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/30 text-indigo-900 dark:text-indigo-300 transition text-xs font-semibold cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <FileText className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                          <span>Tạo List Đăng Bài Facebook</span>
+                        </div>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300">
+                          Mới
+                        </span>
                       </button>
                     )}
 

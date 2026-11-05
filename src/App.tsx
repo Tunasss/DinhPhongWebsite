@@ -37,6 +37,7 @@ import { DeviceDetailModal } from './components/DeviceDetailModal';
 import { AddEditDeviceModal } from './components/AddEditDeviceModal';
 import { GoogleSetupModal } from './components/GoogleSetupModal';
 import { IPhoneShortcutModal } from './components/IPhoneShortcutModal';
+import { PostGeneratorModal } from './components/PostGeneratorModal';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 
@@ -81,6 +82,7 @@ export const App: React.FC = () => {
   const [isAddEditOpen, setIsAddEditOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isIPhoneShortcutOpen, setIsIPhoneShortcutOpen] = useState(false);
+  const [isPostGeneratorOpen, setIsPostGeneratorOpen] = useState(false);
 
   // Thông báo nhanh (Toast)
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -348,6 +350,7 @@ export const App: React.FC = () => {
         onOpenUserManagement={() => setIsUserManagementOpen(true)}
         onOpenChangePassword={() => setIsChangePasswordOpen(true)}
         onOpenIPhoneShortcutModal={() => setIsIPhoneShortcutOpen(true)}
+        onOpenPostGenerator={() => setIsPostGeneratorOpen(true)}
         onLogout={handleLogout}
         onRefresh={() => {
           syncInventory(settings);
@@ -369,6 +372,7 @@ export const App: React.FC = () => {
         onSelectColor={setSelectedColor}
         onSearchChange={setSearchQuery}
         onResetFilters={handleResetFilters}
+        onOpenPostGenerator={() => setIsPostGeneratorOpen(true)}
       />
 
       {/* Khu vực danh sách máy */}
@@ -567,6 +571,19 @@ export const App: React.FC = () => {
         isOpen={isIPhoneShortcutOpen}
         onClose={() => setIsIPhoneShortcutOpen(false)}
         onNotify={showToast}
+      />
+
+      {/* Hộp thoại Tạo list máy đăng bài Facebook theo mẫu chuẩn Đình Phong Store */}
+      <PostGeneratorModal
+        isOpen={isPostGeneratorOpen}
+        devices={devices}
+        onClose={() => setIsPostGeneratorOpen(false)}
+        onNotify={showToast}
+        initialFilter={{
+          productLine: selectedLine === 'ALL' || selectedLine === 'MACBOOK_ALL' || selectedLine === 'IPAD_ALL' || selectedLine === 'ACCESSORY_ALL' ? undefined : (selectedLine as string),
+          chip: selectedChip === 'ALL' ? undefined : selectedChip,
+          color: selectedColor === 'ALL' ? undefined : selectedColor,
+        }}
       />
 
       {/* Toast thông báo */}
