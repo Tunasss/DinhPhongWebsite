@@ -21,8 +21,11 @@ import {
   ArrowLeft,
   Eye,
   ListChecks,
+  RotateCcw,
 } from 'lucide-react';
 import { AppleDevice, DeviceStatus, ProductLine, ChipFamily } from '../types';
+
+export type PostTemplateType = 'COMPACT' | 'SHOWCASE' | 'DETAILED';
 
 interface PostGeneratorModalProps {
   isOpen: boolean;
@@ -268,9 +271,290 @@ function generateDynamicHashtags(selectedDevices: AppleDevice[]): string {
 }
 
 /**
- * Ghép toàn bộ bài đăng Facebook hoàn chỉnh
+ * Định dạng tiêu đề cho Mẫu Báo Giá Rút Gọn (Mẫu 1):
+ * ✨ **MacBook Air M1 13" 8GB/256GB**
+ * ✨ **MacBook Air M4 13" 16GB/256GB Sky Blue**
+ * ✨ **iPad Air M3 11" 128GB Starlight**
  */
-function buildCompletePost(selectedDevices: AppleDevice[]): string {
+function formatDeviceTitleCompact(d: AppleDevice): string {
+  const isIPad =
+    d.deviceType === 'iPad' ||
+    (d.productLine && d.productLine.toLowerCase().includes('ipad'));
+
+  let lineName = 'MacBook Air';
+  if (isIPad) {
+    const pl = (d.productLine || '').toLowerCase();
+    if (pl.includes('pro')) lineName = 'iPad Pro';
+    else if (pl.includes('air')) lineName = 'iPad Air';
+    else if (pl.includes('mini')) lineName = 'iPad Mini';
+    else if (pl.includes('gen')) lineName = 'iPad Gen';
+    else lineName = 'iPad';
+  } else {
+    const pl = (d.productLine || '').toLowerCase();
+    if (pl.includes('pro')) lineName = 'MacBook Pro';
+    else if (pl.includes('air')) lineName = 'MacBook Air';
+    else if (pl.includes('neo')) lineName = 'MacBook Neo';
+    else lineName = 'MacBook';
+  }
+
+  const chip = (d.chip || '').trim();
+
+  // Screen size: 13.6", 14", 15", 16", 11", 10.9"
+  let screen = (d.screenSize || '').replace(/inch/i, '').trim();
+  if (screen.includes('13.6')) screen = '13.6"';
+  else if (screen.includes('13.3') || screen === '13') screen = '13"';
+  else if (screen.includes('14.2') || screen === '14') screen = '14"';
+  else if (screen.includes('15.3') || screen === '15') screen = '15"';
+  else if (screen.includes('16.2') || screen === '16') screen = '16"';
+  else if (screen.includes('11')) screen = '11"';
+  else if (screen.includes('10.9')) screen = '10.9"';
+  else if (screen.includes('12.9')) screen = '12.9"';
+  else if (screen) screen = `${screen}"`;
+
+  // Tên màu tiếng Anh chuẩn
+  let colorName = (d.color || '').trim();
+  const matchEnglish = colorName.match(/^([^(]+)/);
+  if (matchEnglish && matchEnglish[1]) {
+    colorName = matchEnglish[1].trim();
+  }
+  colorName = colorName
+    .split(' ')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+
+  const storage = (d.storage || '256GB').trim();
+
+  const titleParts: string[] = [lineName];
+  if (chip) titleParts.push(chip);
+  if (screen) titleParts.push(screen);
+
+  if (isIPad) {
+    titleParts.push(storage);
+  } else {
+    const rawRam = (d.ram || '').trim();
+    const ram =
+      rawRam && rawRam.toUpperCase() !== 'N/A' && rawRam !== 'undefined'
+        ? rawRam
+        : '16GB';
+    titleParts.push(`${ram}/${storage}`);
+  }
+
+  if (colorName) titleParts.push(colorName);
+
+  // Ghi chú GPU nếu có ví dụ (10GPU)
+  const fullText = `${d.title || ''} ${d.conditionNote || ''}`;
+  if (
+    fullText.includes('10GPU') ||
+    fullText.includes('10 GPU') ||
+    fullText.includes('10-core GPU')
+  ) {
+    titleParts.push('(10GPU)');
+  }
+
+  return `✨ **${titleParts.join(' ')}**`;
+}
+
+/**
+ * Định dạng dòng pin & giá cho Mẫu 1 (Báo Giá Rút Gọn):
+ * 🔋 Pin 90% • 💰 **10.990.000đ**
+ * hoặc
+ * 🔋 Pin 100% • 68 lần sạc • 💰 **25.290.000đ**
+ * hoặc khi có bảo hành Apple:
+ * 🔋 Pin 100% • 🛡️ BH Apple 03/2027
+ * 💰 **27.390.000đ**
+ */
+function formatBatteryAndPriceCompact(d: AppleDevice): string {
+  const hasCap =
+    d.hasBatteryCapacity &&
+    d.batteryCapacityPercent !== undefined &&
+    d.batteryCapacityPercent > 0;
+  const hasCycle =
+    d.hasBatteryCycle &&
+    d.batteryCycleCount !== undefined &&
+    d.batteryCycleCount > 0;
+
+  let batText = '🔋 Pin tốt';
+  if (hasCap && hasCycle) {
+    batText = `🔋 Pin ${d.batteryCapacityPercent}% • ${d.batteryCycleCount} lần sạc`;
+  } else if (hasCap) {
+    batText = `🔋 Pin ${d.batteryCapacityPercent}%`;
+  } else if (hasCycle) {
+    batText = `🔋 Pin sạc ${d.batteryCycleCount} lần`;
+  }
+
+  const hasAppleW =
+    d.hasWarranty &&
+    d.warrantyExpiryDate &&
+    d.warrantyExpiryDate.trim().length > 0;
+
+  if (hasAppleW) {
+    let wDate = d.warrantyExpiryDate!.trim();
+    if (wDate.includes('-')) {
+      const parts = wDate.split('-');
+      if (parts.length === 3) {
+        wDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+      } else if (parts.length === 2) {
+        wDate = `${parts[1]}/${parts[0]}`;
+      }
+    }
+    return `${batText} • 🛡️ BH Apple ${wDate}\n💰 **${formatVND(d.salePrice)}**`;
+  }
+
+  return `${batText} • 💰 **${formatVND(d.salePrice)}**`;
+}
+
+/**
+ * MẪU 1: BÁO GIÁ RÚT GỌN (Theo đúng ảnh mẫu người dùng gửi)
+ */
+function buildCompactPost(selectedDevices: AppleDevice[]): string {
+  if (!selectedDevices || selectedDevices.length === 0) return '';
+
+  const entries = selectedDevices.map((d) => {
+    const title = formatDeviceTitleCompact(d);
+    const batAndPrice = formatBatteryAndPriceCompact(d);
+    return `${title}\n${batAndPrice}`;
+  });
+
+  const hashtagString = generateDynamicHashtags(selectedDevices);
+
+  return `${entries.join('\n\n')}\n\n${DEFAULT_POST_FOOTER}\n\n${hashtagString}`;
+}
+
+/**
+ * MẪU 2: BÀI SALE DÒNG MÁY / SHOWCASE (Theo mẫu text người dùng cung cấp)
+ */
+function buildShowcasePost(selectedDevices: AppleDevice[]): string {
+  if (!selectedDevices || selectedDevices.length === 0) return '';
+
+  const first = selectedDevices[0];
+  const isIPad =
+    first.deviceType === 'iPad' ||
+    (first.productLine && first.productLine.toLowerCase().includes('ipad'));
+
+  // Header Title
+  let mainTitle = '';
+  const plName = (first.productLine || (isIPad ? 'iPad' : 'MacBook')).toUpperCase();
+  const chipStr = first.chip ? `(${first.chip.toUpperCase()})` : '';
+  const storageStr = (first.storage || '128GB').toUpperCase();
+
+  if (isIPad) {
+    mainTitle = `${plName} ${chipStr} ${storageStr} – WIFI`.replace(/\s+/g, ' ');
+  } else {
+    let screen = (first.screenSize || '').replace(/inch/i, '').trim();
+    if (screen.includes('13.6')) screen = '13.6"';
+    else if (screen.includes('13.3') || screen === '13') screen = '13"';
+    else if (screen.includes('14.2') || screen === '14') screen = '14"';
+    else if (screen.includes('15.3') || screen === '15') screen = '15"';
+    else if (screen.includes('16.2') || screen === '16') screen = '16"';
+    else if (screen) screen = `${screen}"`;
+
+    const ramStr = first.ram && first.ram !== 'N/A' ? `${first.ram}/` : '';
+    mainTitle = `${plName} ${chipStr} ${screen} ${ramStr}${storageStr}`.replace(
+      /\s+/g,
+      ' '
+    );
+  }
+
+  // Thông số bullet
+  const chipVal = first.chip || (isIPad ? 'A-Series' : 'Apple Silicon');
+  let screenText = (first.screenSize || (isIPad ? '11 inch' : '13.6 inch')).trim();
+  if (!screenText.toLowerCase().includes('inch')) {
+    screenText = `${screenText} inch`;
+  }
+
+  let specBullet = '';
+  if (isIPad) {
+    specBullet = `• Chip Apple ${chipVal} | Dung lượng ${first.storage || '128GB'} | Màn hình ${screenText}`;
+  } else {
+    const ramText = first.ram && first.ram !== 'N/A' ? `RAM ${first.ram} | ` : '';
+    specBullet = `• Chip Apple ${chipVal} | ${ramText}SSD ${first.storage || '256GB'} | Màn hình ${screenText}`;
+  }
+
+  // Pin bullet: Tìm dải pin
+  const batteryCaps = selectedDevices
+    .map((d) => d.batteryCapacityPercent)
+    .filter((p): p is number => typeof p === 'number' && p > 0);
+
+  let pinBullet = '• Pin 9x–100%';
+  if (batteryCaps.length > 0) {
+    const minBat = Math.min(...batteryCaps);
+    const maxBat = Math.max(...batteryCaps);
+    if (minBat >= 90 && maxBat === 100) {
+      pinBullet = '• Pin 9x–100%';
+    } else if (minBat === maxBat) {
+      pinBullet = `• Pin ${minBat}%`;
+    } else {
+      pinBullet = `• Pin ${minBat}%–${maxBat}%`;
+    }
+  }
+
+  // Ngoại hình bullet
+  const hasFullbox = selectedDevices.some(
+    (d) =>
+      d.conditionNote?.toLowerCase().includes('box') ||
+      d.title?.toLowerCase().includes('box')
+  );
+  const conditionBullet = hasFullbox
+    ? '• Ngoại hình đẹp, fullbox'
+    : '• Ngoại hình đẹp keng 99%';
+
+  // Giá bán khởi điểm
+  const prices = selectedDevices.map((d) => d.salePrice).filter((p) => p > 0);
+  const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+  let priceLine = '💰 Giá cực tốt';
+  if (minPrice > 0) {
+    const million = Math.floor(minPrice / 1000000);
+    priceLine = `💰 Giá chỉ từ ${million}.x triệu`;
+  }
+
+  // Nếu chọn nhiều máy, thêm danh sách chi tiết các bản
+  let machinesSublist = '';
+  if (selectedDevices.length > 1) {
+    const items = selectedDevices.map((d, i) => {
+      let col = (d.color || '').replace(/\([^)]*\)/g, '').trim();
+      let pin =
+        d.hasBatteryCapacity && d.batteryCapacityPercent
+          ? `Pin ${d.batteryCapacityPercent}%`
+          : 'Pin zin';
+      let w =
+        d.hasWarranty && d.warrantyExpiryDate
+          ? `BH Apple ${d.warrantyExpiryDate}`
+          : 'BH Shop 3T';
+      return `  ${i + 1}. ${col || 'Bản chuẩn'} • ${pin} • ${w} ➔ ${formatVND(d.salePrice)}`;
+    });
+    machinesSublist = `\n\n✨ CÁC BẢN MÁY SẴN HÀNG:\n${items.join('\n')}`;
+  }
+
+  const hashtagString = generateDynamicHashtags(selectedDevices);
+
+  return `${mainTitle}
+
+${specBullet}
+${pinBullet}
+${conditionBullet}
+• Zin nguyên bản, không MDM, không iCloud
+
+${priceLine}${machinesSublist}
+
+ƯU ĐÃI & CHÍNH SÁCH
+• Thu cũ đổi mới – hỗ trợ trả góp
+• Bao test, bảo hành tại shop
+• Giao hàng COD toàn quốc
+
+📍 Thủ Đức – TP.HCM
+📲 094 578 6642 (Đình Phong)
+    092 215 5156 (Vũ)
+    033 8195 855 (Minh Quân)
+
+Inbox để nhận hình ảnh và giá chi tiết từng máy nhé!
+
+${hashtagString}`;
+}
+
+/**
+ * MẪU 3: DANH SÁCH CHI TIẾT ① ② ③
+ */
+function buildDetailedPost(selectedDevices: AppleDevice[]): string {
   if (!selectedDevices || selectedDevices.length === 0) return '';
 
   const entries = selectedDevices.map((d, index) => {
@@ -321,6 +605,9 @@ export const PostGeneratorModal: React.FC<PostGeneratorModalProps> = ({
   const [selectedDeviceIds, setSelectedDeviceIds] = useState<Set<string>>(
     new Set()
   );
+
+  // Quản lý mẫu bài viết: COMPACT (Báo giá gọn) | SHOWCASE (Bài sale dòng) | DETAILED (Chi tiết ①②③)
+  const [selectedTemplate, setSelectedTemplate] = useState<PostTemplateType>('COMPACT');
 
   // Nội dung bài viết tùy biến (nếu người dùng muốn sửa trực tiếp)
   const [customPostContent, setCustomPostContent] = useState<string | null>(null);
@@ -430,11 +717,13 @@ export const PostGeneratorModal: React.FC<PostGeneratorModalProps> = ({
     return filteredDevices.filter((d) => selectedDeviceIds.has(d.id));
   }, [filteredDevices, selectedDeviceIds]);
 
-  // Tự động tạo bài đăng khi danh sách máy đã chọn thay đổi
+  // Tự động tạo bài đăng khi danh sách máy đã chọn hoặc mẫu bài thay đổi
   const generatedPost = useMemo(() => {
     if (customPostContent !== null) return customPostContent;
-    return buildCompletePost(selectedDevices);
-  }, [selectedDevices, customPostContent]);
+    if (selectedTemplate === 'COMPACT') return buildCompactPost(selectedDevices);
+    if (selectedTemplate === 'SHOWCASE') return buildShowcasePost(selectedDevices);
+    return buildDetailedPost(selectedDevices);
+  }, [selectedDevices, selectedTemplate, customPostContent]);
 
   if (!isOpen) return null;
 
@@ -854,11 +1143,99 @@ export const PostGeneratorModal: React.FC<PostGeneratorModalProps> = ({
               </button>
             </div>
 
+            {/* Thanh Chọn Mẫu Bài Viết (3 Mẫu Chuẩn FB) */}
+            <div className="p-2 sm:p-2.5 mx-3 sm:mx-4 mt-2.5 bg-slate-100 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700/80 space-y-1.5 shrink-0">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                  Chọn mẫu bài đăng ({selectedDevices.length} máy đã chọn)
+                </span>
+                {customPostContent !== null && (
+                  <button
+                    type="button"
+                    onClick={() => setCustomPostContent(null)}
+                    className="text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                    title="Khôi phục lại bài viết tự động theo mẫu"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Khôi phục mẫu</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-3 gap-1.5">
+                {/* Mẫu 1 */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedTemplate('COMPACT');
+                    setCustomPostContent(null);
+                  }}
+                  className={`py-1.5 px-1 sm:px-2 rounded-xl text-center font-bold text-[11px] sm:text-xs transition cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
+                    selectedTemplate === 'COMPACT'
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25 ring-2 ring-blue-500/30'
+                      : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                    <span>Mẫu 1</span>
+                  </div>
+                  <span className="text-[9px] sm:text-[10px] opacity-85 font-normal truncate max-w-full">
+                    Báo giá gọn
+                  </span>
+                </button>
+
+                {/* Mẫu 2 */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedTemplate('SHOWCASE');
+                    setCustomPostContent(null);
+                  }}
+                  className={`py-1.5 px-1 sm:px-2 rounded-xl text-center font-bold text-[11px] sm:text-xs transition cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
+                    selectedTemplate === 'SHOWCASE'
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25 ring-2 ring-indigo-500/30'
+                      : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-1">
+                    <Share2 className="w-3.5 h-3.5 text-cyan-300" />
+                    <span>Mẫu 2</span>
+                  </div>
+                  <span className="text-[9px] sm:text-[10px] opacity-85 font-normal truncate max-w-full">
+                    Bài sale dòng
+                  </span>
+                </button>
+
+                {/* Mẫu 3 */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedTemplate('DETAILED');
+                    setCustomPostContent(null);
+                  }}
+                  className={`py-1.5 px-1 sm:px-2 rounded-xl text-center font-bold text-[11px] sm:text-xs transition cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
+                    selectedTemplate === 'DETAILED'
+                      ? 'bg-violet-600 text-white shadow-md shadow-violet-500/25 ring-2 ring-violet-500/30'
+                      : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-1">
+                    <FileText className="w-3.5 h-3.5 text-violet-200" />
+                    <span>Mẫu 3</span>
+                  </div>
+                  <span className="text-[9px] sm:text-[10px] opacity-85 font-normal truncate max-w-full">
+                    Chi tiết ①②③
+                  </span>
+                </button>
+              </div>
+            </div>
+
             {/* Banner Lưu ý không copy serial */}
-            <div className="p-2 sm:p-2.5 mx-3 sm:mx-4 mt-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-800 dark:text-blue-300 text-[11px] flex items-center gap-2 shrink-0">
+            <div className="p-2 sm:p-2.5 mx-3 sm:mx-4 mt-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-800 dark:text-blue-300 text-[11px] flex items-center gap-2 shrink-0">
               <Info className="w-4 h-4 text-blue-600 shrink-0" />
               <span>
-                <b>Đã tối ưu:</b> Bài đăng <b>không chứa Serial</b>, có icon 🔋✨🛡️💰 &amp; bảo hành shop tự động.
+                <b>Tự động ẩn Serial:</b> Văn bản copy hoàn toàn <b>không chứa số Serial</b>, tuỳ chọn 3 mẫu bài viết chuẩn shop.
               </span>
             </div>
 
