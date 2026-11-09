@@ -96,26 +96,36 @@ export async function downloadAllDeviceImages(
     deviceFilesCache.set(device.id, filePromise);
   }
 
-  const files = await filePromise;
+  let files = await filePromise;
 
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  if (
-    isMobile &&
-    files.length > 0 &&
-    typeof navigator.canShare === 'function' &&
-    navigator.canShare({ files })
-  ) {
+  // Nếu cache bị rỗng (ví dụ lỗi mạng lần đầu), thử tải lại
+  if (!files || files.length === 0) {
+    onProgress?.(`Đang kết nối lại lấy ${device.images.length} ảnh...`);
+    files = await prepareDeviceFiles(device);
+  }
+
+  // Hỗ trợ Share Sheet trên TẤT CẢ thiết bị (kể cả iPhone bật Request Desktop Website làm Mac giả lập)
+  const hasShareApi =
+    typeof navigator !== 'undefined' &&
+    typeof navigator.share === 'function' &&
+    typeof navigator.canShare === 'function';
+
+  if (hasShareApi && files.length > 0) {
     try {
-      /**
-       * ĐIỀU CHỈNH THEN CHỐT CHO IOS 18 / 17 PRO MAX:
-       * Chỉ truyền DUY NHẤT { files }, TUYỆT ĐỐI KHÔNG TRUYỀN title hay text.
-       * Khi có title/text, iOS sẽ coi là bài viết đính kèm tệp và giấu nút "Save X Images".
-       * Khi chỉ có { files }, iOS sẽ luôn hiển thị nút "Save X Images" ("Lưu X hình ảnh").
-       */
-      await navigator.share({
-        files,
-      });
-      return { method: 'share', count: files.length };
+      if (navigator.canShare({ files })) {
+        /**
+         * ĐIỀU CHỈNH THEN CHỐT CHO IOS 18 / 17 PRO MAX:
+         * Chỉ truyền DUY NHẤT { files }, TUYỆT ĐỐI KHÔNG TRUYỀN title hay text.
+         * Khi có title/text, iOS sẽ coi là bài viết đính kèm tệp và giấu nút "Save X Images".
+         * Khi chỉ có { files }, iOS sẽ luôn hiển thị nút "Save X Images" ("Lưu X hình ảnh").
+         */
+        await navigator.share({
+          files,
+        });
+        return { method: 'share', count: files.length };
+      } else {
+        console.warn('Thiết bị không hỗ trợ chia sẻ danh sách tệp này (canShare returned false)');
+      }
     } catch (shareErr) {
       if ((shareErr as Error)?.name === 'AbortError') {
         // Người dùng tự bấm Hủy / Đóng menu chia sẻ

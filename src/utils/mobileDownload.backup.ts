@@ -107,3 +107,4 @@ export function buildDeviceShareText(device: AppleDevice): string {
   ];
   return lines.join('\n');
 }
+
