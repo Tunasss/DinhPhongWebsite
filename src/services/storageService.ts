@@ -276,7 +276,7 @@ export function normalizeDateToYMD(val: unknown): string {
 }
 
 export function formatWarrantySummary(device: Partial<AppleDevice>): string {
-  if (!device.hasWarranty) return 'Hết bảo hành';
+  if (!device.hasWarranty) return 'BH Shop 6T (Bao test 30 ngày)';
   const ymd = normalizeDateToYMD(device.warrantyExpiryDate);
   if (ymd) {
     const parts = ymd.split('-');
@@ -285,7 +285,7 @@ export function formatWarrantySummary(device: Partial<AppleDevice>): string {
     }
     return `Còn BH đến ${ymd}`;
   }
-  return 'Còn bảo hành';
+  return 'Còn bảo hành hãng';
 }
 
 /**

@@ -195,7 +195,7 @@ function formatCondition(d: AppleDevice): string {
 /**
  * Định dạng bảo hành theo quy định mới:
  * - Nếu còn bảo hành hãng: 🛡️ BH hãng đến 03/2027 (hoặc ngày cụ thể)
- * - Nếu hết bảo hành hãng: 🛡️ BH shop 3 tháng – Bao test 15 ngày
+ * - Nếu hết bảo hành hãng: 🛡️ BH shop 6 tháng – Bao test 30 ngày
  */
 function formatWarranty(d: AppleDevice): string {
   if (d.hasWarranty && d.warrantyExpiryDate) {
@@ -210,13 +210,15 @@ function formatWarranty(d: AppleDevice): string {
     }
     return `🛡️ BH hãng đến ${wDate}`;
   }
-  return '🛡️ BH shop 3 tháng – Bao test 15 ngày';
+  return '🛡️ BH shop 6 tháng – Bao test 30 ngày';
 }
 
 /**
  * Footer cố định theo mẫu quy định của Đình Phong Store:
  */
 const DEFAULT_POST_FOOTER = `Máy full zin – Không MDM, không iCloud.
+🛡️ BH shop 6 tháng – Bao test 30 ngày.
+
 📍 Thủ Đức – TP.HCM
 
 📲 094 578 6642 (Đình Phong)
@@ -400,7 +402,7 @@ function formatBatteryAndPriceCompact(d: AppleDevice): string {
     return `${batText} • 🛡️ BH Apple ${wDate}\n💰 **${formatVND(d.salePrice)}**`;
   }
 
-  return `${batText} • 💰 **${formatVND(d.salePrice)}**`;
+  return `${batText} • 🛡️ BH Shop 6T • 💰 **${formatVND(d.salePrice)}**`;
 }
 
 /**
@@ -519,7 +521,7 @@ function buildShowcasePost(selectedDevices: AppleDevice[]): string {
       let w =
         d.hasWarranty && d.warrantyExpiryDate
           ? `BH Apple ${d.warrantyExpiryDate}`
-          : 'BH Shop 3T';
+          : 'BH Shop 6T';
       return `  ${i + 1}. ${col || 'Bản chuẩn'} • ${pin} • ${w} ➔ ${formatVND(d.salePrice)}`;
     });
     machinesSublist = `\n\n✨ CÁC BẢN MÁY SẴN HÀNG:\n${items.join('\n')}`;
@@ -538,7 +540,7 @@ ${priceLine}${machinesSublist}
 
 ƯU ĐÃI & CHÍNH SÁCH
 • Thu cũ đổi mới – hỗ trợ trả góp
-• Bao test, bảo hành tại shop
+• 🛡️ BH shop 6 tháng – Bao test 30 ngày
 • Giao hàng COD toàn quốc
 
 📍 Thủ Đức – TP.HCM
@@ -1081,7 +1083,7 @@ export const PostGeneratorModal: React.FC<PostGeneratorModalProps> = ({
                           >
                             {d.hasWarranty && d.warrantyExpiryDate
                               ? `BH: ${d.warrantyExpiryDate}`
-                              : 'BH Shop 3T'}
+                              : 'BH Shop 6T'}
                           </span>
                         </div>
                       </div>
