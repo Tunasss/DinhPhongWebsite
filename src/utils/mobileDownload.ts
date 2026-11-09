@@ -1,11 +1,6 @@
 import { AppleDevice, DeviceImage } from '../types';
 import { formatBatterySummary, formatWarrantySummary } from '../services/storageService';
 
-/**
- * GHI CHÚ: Bản gốc trước khi tối ưu được lưu dự phòng tại:
- * src/utils/mobileDownload.backup.ts
- */
-
 // Bộ nhớ đệm tạm thời cho File ảnh (tránh fetch lại nhiều lần và giảm độ trễ về 0ms)
 const deviceFilesCache = new Map<string, Promise<File[]>>();
 
