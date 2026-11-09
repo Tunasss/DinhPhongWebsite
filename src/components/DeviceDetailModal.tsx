@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Download,
@@ -17,6 +17,7 @@ import { AppleDevice, DeviceStatus } from '../types';
 import {
   buildDeviceShareText,
   downloadAllDeviceImages,
+  prefetchDeviceImages,
   formatCurrencyVND,
 } from '../utils/mobileDownload';
 import { formatWarrantySummary } from '../services/storageService';
@@ -61,6 +62,13 @@ export const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
 
   const currentImg = device.images?.[selectedImageIdx] || device.images?.[0];
   const driveLink = device.driveFolderUrl || SHOP_DRIVE_ROOT_FOLDER_URL;
+
+  // Tải trước ảnh vào RAM ngay khi mở chi tiết máy để sẵn sàng cho lệnh lưu 1 chạm (0ms delay)
+  useEffect(() => {
+    if (device && device.images && device.images.length > 0) {
+      prefetchDeviceImages(device);
+    }
+  }, [device]);
 
   const handleDownloadAll = async () => {
     if (isDownloading) return;

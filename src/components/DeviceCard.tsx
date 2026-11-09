@@ -20,6 +20,7 @@ import { AppleDevice } from '../types';
 import {
   buildDeviceShareText,
   downloadAllDeviceImages,
+  prefetchDeviceImages,
   formatCurrencyVND,
 } from '../utils/mobileDownload';
 import { formatWarrantySummary } from '../services/storageService';
@@ -111,6 +112,8 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
   return (
     <article
       onClick={() => onSelectDevice(device)}
+      onMouseEnter={() => prefetchDeviceImages(device)}
+      onTouchStart={() => prefetchDeviceImages(device)}
       className="device-card-item group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 hover:border-blue-500 dark:hover:border-blue-500 shadow-xs dark:shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-200 overflow-hidden flex flex-col cursor-pointer"
     >
       {/* Khu vực hình ảnh máy */}
