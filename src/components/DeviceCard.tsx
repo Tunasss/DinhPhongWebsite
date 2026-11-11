@@ -82,7 +82,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
     const text = buildDeviceShareText(device);
     navigator.clipboard.writeText(text);
     setCopiedPost(true);
-    onNotify(`Đã copy thông tin đăng bài máy ${device.serial}`);
+    onNotify('Đã copy thông tin đăng bài (không kèm Serial)!');
     setTimeout(() => setCopiedPost(false), 1800);
   };
 

@@ -172,7 +172,6 @@ export function buildDeviceShareText(device: AppleDevice): string {
   const warrantyText = formatWarrantySummary(device);
   const lines = [
     `🍎 ${device.title.toUpperCase()}`,
-    `• Mã Serial: ${device.serial}`,
     device.deviceType === 'Khác'
       ? `• Phụ kiện: ${device.title}`
       : device.deviceType === 'iPad' || !device.ram || device.ram === 'N/A'
